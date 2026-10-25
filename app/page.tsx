@@ -1,7 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCheck, ChevronRight, Copy, FlaskConical, HelpCircle, LogOut, Maximize2, Radio, RotateCcw, Users, X, Zap, Bot, Package, Trophy, Plus } from "lucide-react";
-import { clamp, direction, WORLD } from "../lib/game";
+import { direction } from "../lib/game";
+import {RendererController,type DebugStats,type ViewState} from "../lib/render/controller";
+import {readViewPreference,saveViewPreference} from "../lib/render/select";
+import {RenderEvents} from "../lib/render/events";
+import type {FrameView,ViewKind} from "../lib/render/types";
 import { MovementSync, pollDelay } from "../lib/movement-sync";
 
 type Session = {code:string;id:string;token:string};
@@ -31,21 +35,26 @@ export default function Home() {
   const [busy,setBusy]=useState(false); const [error,setError]=useState(""); const [notice,setNotice]=useState("");
   const [connected,setConnected]=useState(false); const [latency,setLatency]=useState(0);
   const [help,setHelp]=useState(false); const [copied,setCopied]=useState(""); const [moving,setMoving]=useState(false);
-  const canvas=useRef<HTMLCanvasElement>(null); const stage=useRef<HTMLDivElement>(null);
+  const surface=useRef<HTMLDivElement>(null); const stage=useRef<HTMLDivElement>(null);
   const stateRef=useRef<State|null>(null); const input=useRef({x:0,y:0}); const keys=useRef(new Set<string>());
   const joystick=useRef({x:0,y:0}); const [stick,setStick]=useState({x:0,y:0});
   const sessionRef=useRef<Session|null>(null); const rttRef=useRef(0); const snapshotAt=useRef(0);
   const movement=useRef(new MovementSync()); const seq=useRef(Date.now()); const movingRef=useRef(false);
   const errors=useRef(0); const helpRef=useRef(false);
   const interaction=useRef(0); const kickSync=useRef<()=>void>(()=>{});
+  const controller=useRef<RendererController|null>(null);const desiredView=useRef<ViewKind>("2d");
+  const [viewState,setViewState]=useState<ViewState>({kind:"2d",loading:false,notice:""});
+  const [debugMode,setDebugMode]=useState(false);const [debugStats,setDebugStats]=useState<DebugStats|null>(null);
+  const renderEvents=useRef(new RenderEvents());const grabPendingRef=useRef(false);
   const [grabPending,setGrabPending]=useState(false); const [remaining,setRemaining]=useState(180);
+  grabPendingRef.current=grabPending;
   const update=useCallback((next:State)=>{
     if(stateRef.current && next.code===stateRef.current.code && next.serverNow<stateRef.current.serverNow) return;
-    snapshotAt.current=performance.now();movement.current.receive(next,sessionRef.current?.id||"",snapshotAt.current,rttRef.current);stateRef.current=next;setState(next);
+    snapshotAt.current=performance.now();renderEvents.current.push(next,snapshotAt.current);movement.current.receive(next,sessionRef.current?.id||"",snapshotAt.current,rttRef.current);stateRef.current=next;setState(next);
     const own=next.players.find(p=>p.id===sessionRef.current?.id);if(own&&own.interactSeq>=interaction.current)setGrabPending(false);
   },[]);
   const reset=useCallback((message="")=>{
-    sessionStorage.removeItem(SESSION_KEY);sessionRef.current=null;setSession(null);setState(null);stateRef.current=null;movement.current.reset();setConnected(false);input.current={x:0,y:0};keys.current.clear();joystick.current={x:0,y:0};setStick({x:0,y:0});setMoving(false);movingRef.current=false;setGrabPending(false);setError("");setNotice(message);
+    sessionStorage.removeItem(SESSION_KEY);sessionRef.current=null;setSession(null);setState(null);stateRef.current=null;movement.current.reset();renderEvents.current.reset();setConnected(false);input.current={x:0,y:0};keys.current.clear();joystick.current={x:0,y:0};setStick({x:0,y:0});setMoving(false);movingRef.current=false;setGrabPending(false);setError("");setNotice(message);
   },[]);
   useEffect(()=>{
     try {
@@ -55,6 +64,7 @@ export default function Home() {
       const saved=JSON.parse(sessionStorage.getItem(SESSION_KEY)||"null") as Session|null;
       if(saved?.code&&saved.id&&saved.token){sessionRef.current=saved;setSession(saved);}
     }catch{sessionStorage.removeItem(SESSION_KEY);}
+    desiredView.current=readViewPreference();setDebugMode(new URLSearchParams(location.search).get("debug")==="1");
     setReady(true);
   },[]);
   useEffect(()=>{
@@ -110,66 +120,28 @@ export default function Home() {
   },[]);
   useEffect(()=>{helpRef.current=help;if(help){keys.current.clear();input.current={x:0,y:0};}},[help]);
   useEffect(()=>{
-    if(!session || !state || !canvas.current)return;
-    const element=canvas.current;const context=element.getContext("2d");if(!context)return;
+    if(!session||!state||!surface.current)return;
+    const host=surface.current;const renderer=new RendererController(setViewState,setDebugStats);controller.current=renderer;renderer.mount(host,desiredView.current);
     let frame=0;let last=performance.now();
+    const reduced=matchMedia("(prefers-reduced-motion: reduce)");
     const draw=(time:number)=>{
       const dt=Math.min((time-last)/1000,.05);last=time;
       const s=stateRef.current;if(!s)return;
-      const width=element.clientWidth;const height=element.clientHeight;
-      const ratio=Math.min(window.devicePixelRatio||1,2);
-      if(element.width!==Math.round(width*ratio)||element.height!==Math.round(height*ratio)){element.width=Math.round(width*ratio);element.height=Math.round(height*ratio);}
-      const c=context; c.setTransform(element.width/WORLD.width,0,0,element.height/WORLD.height,0,0);
-      c.fillStyle="#1a211d";c.fillRect(0,0,960,600);
-      c.strokeStyle="#29332b";c.lineWidth=1;
-      for(let x=0;x<960;x+=40){c.beginPath();c.moveTo(x,0);c.lineTo(x,600);c.stroke();}
-      for(let y=0;y<600;y+=40){c.beginPath();c.moveTo(0,y);c.lineTo(960,y);c.stroke();}
-      c.strokeStyle="#4a5549";c.lineWidth=2;c.strokeRect(12,12,936,576);
-      c.strokeStyle="#607252";c.setLineDash([5,8]);c.strokeRect(200,150,560,300);c.setLineDash([]);
-      c.fillStyle="#8e9a80";c.font="12px monospace";c.textAlign="left";c.fillText("ANOMALY STORAGE",218,174);
-      c.fillStyle="#53614f";c.font="bold 72px monospace";c.textAlign="center";c.fillText("01",480,335);
-      c.font="12px monospace";c.fillText("LAB FLOOR / 960 × 600",480,560);
-      for(const [x,y]of [[80,80],[880,80],[80,520],[880,520]]){
-        c.strokeStyle="#637055";c.beginPath();c.moveTo(x-8,y);c.lineTo(x+8,y);c.moveTo(x,y-8);c.lineTo(x,y+8);c.stroke();
-      }
-      c.fillStyle="#405b29";c.fillRect(850,180,96,240);c.strokeStyle="#bce477";c.lineWidth=2;c.strokeRect(850,180,96,240);
-      c.fillStyle="#e8fa79";c.font="bold 13px monospace";c.textAlign="center";c.fillText("DELIVER",898,277);c.fillText("+1 POINT",898,300);c.font="30px monospace";c.fillText("→",898,340);
+      renderer.resize(host.clientWidth,host.clientHeight);
       const worldNow=s.serverNow+Math.max(0,time-snapshotAt.current);
-      for(const a of s.anomalies||[]){
-        if(a.carrierId||a.respawnAt>worldNow)continue;
-        c.save();c.shadowColor="#a5f4ef";c.shadowBlur=12;c.fillStyle="#9aeddf";c.fillRect(a.x-11,a.y-16,22,32);c.shadowBlur=0;c.fillStyle="#385c53";c.fillRect(a.x-8,a.y-20,16,5);c.fillStyle="#233c32";c.fillRect(a.x-7,a.y-5,14,10);c.restore();
-      }
-      const labels:{text:string;x:number;y:number;width:number;color:string;px:number;py:number}[]=[];
-      for(const p of s.players){
-        const isSelf=p.id===session.id;const running=s.status==="running";
-        const v=(isSelf?movement.current.localPosition(input.current,p.carrying,dt):movement.current.remotePosition(p.id,time,dt))??{x:p.x,y:p.y};
-        if(isSelf&&running&&!movingRef.current&&Math.hypot(input.current.x,input.current.y)>.1){movingRef.current=true;setMoving(true);}
-        c.globalAlpha=p.connected?1:.45;
-        if(isSelf){c.strokeStyle=p.color;c.globalAlpha=.35;c.lineWidth=2;c.beginPath();c.arc(v.x,v.y,28,0,Math.PI*2);c.stroke();c.globalAlpha=1;}
-        c.fillStyle="#060b0880";c.beginPath();c.ellipse(v.x,v.y+20,22,8,0,0,Math.PI*2);c.fill();
-        c.fillStyle=p.color;c.beginPath();c.arc(v.x,v.y,19,0,Math.PI*2);c.fill();
-        if(p.carrying){c.save();c.shadowColor="#b1fff1";c.shadowBlur=8;c.fillStyle="#9aeddf";c.fillRect(v.x+12,v.y-30,14,22);c.fillStyle="#324c40";c.fillRect(v.x+14,v.y-34,10,5);c.restore();}
-        if(p.isBot){c.strokeStyle="#1a211d";c.lineWidth=2;c.beginPath();c.moveTo(v.x,v.y-18);c.lineTo(v.x,v.y-25);c.stroke();c.fillStyle=p.color;c.fillRect(v.x-3,v.y-28,6,5);}
-        c.fillStyle="#1a211d";c.beginPath();c.arc(v.x-6,v.y-2,2.5,0,Math.PI*2);c.arc(v.x+6,v.y-2,2.5,0,Math.PI*2);c.fill();
-        const label=(p.isBot?p.name+" · BOT Lv1":p.name)+(isSelf?" · YOU":"");c.font="bold 12px monospace";
-        const labelWidth=c.measureText(label).width+20;
-        const labelX=clamp(v.x-labelWidth/2,8,952-labelWidth);
-        let labelY=v.y<58?v.y+33:v.y-50;
-        for(let attempt=0;attempt<8;attempt++){
-          if(!labels.some(l=>labelX<l.x+l.width+4&&labelX+labelWidth+4>l.x&&labelY<l.y+27&&labelY+27>l.y))break;
-          labelY=labelY>40?labelY-28:v.y+33+attempt*28;
-        }
-        labels.push({text:label,x:labelX,y:labelY,width:labelWidth,color:isSelf?p.color:"#eef2e5",px:v.x,py:v.y});
-        c.globalAlpha=1;
-      }
-      for(const label of labels){
-        c.strokeStyle="#657457";c.lineWidth=1;c.beginPath();c.moveTo(label.px,label.py-21);c.lineTo(label.x+label.width/2,label.y+23);c.stroke();
-        c.fillStyle="#111811f2";c.fillRect(label.x,label.y,label.width,23);c.fillStyle=label.color;c.textAlign="center";c.fillText(label.text,label.x+label.width/2,label.y+16);
-      }
-      frame=requestAnimationFrame(draw);
+      const players=s.players.map(p=>{
+        const isSelf=p.id===session.id;
+        const position=(isSelf?movement.current.localPosition(input.current,p.carrying,dt):movement.current.remotePosition(p.id,time,dt))??{x:p.x,y:p.y};
+        if(isSelf&&s.status==="running"&&!movingRef.current&&Math.hypot(input.current.x,input.current.y)>.1){movingRef.current=true;setMoving(true);}
+        return {...p,...position,isSelf};
+      });
+      const view:FrameView={time,dt,status:s.status,secondsLeft:Math.max(0,Math.ceil((s.roundEndsAt-worldNow-rttRef.current/2)/1000)),input:input.current,grabPending:grabPendingRef.current,players,
+        anomalies:s.anomalies.map(a=>({...a,visible:!a.carrierId&&a.respawnAt<=worldNow})),events:renderEvents.current.drain(time),reducedMotion:reduced.matches};
+      renderer.frame(view);frame=requestAnimationFrame(draw);
     };
-    frame=requestAnimationFrame(draw);return()=>cancelAnimationFrame(frame);
+    frame=requestAnimationFrame(draw);return()=>{cancelAnimationFrame(frame);renderer.dispose();if(controller.current===renderer)controller.current=null;};
   },[session,!!state]);
+  const chooseView=(kind:ViewKind)=>{desiredView.current=kind;saveViewPreference(kind);void controller.current?.choose(kind);};
   async function enter(e:React.FormEvent){
     e.preventDefault();if(busy)return;setBusy(true);setError("");setNotice("");
     try {
@@ -241,8 +213,9 @@ export default function Home() {
         {running&&<div className="round-hud"><div className={`round-clock ${remaining<=10?"urgent":""}`} role="timer" aria-label="Time remaining"><span>TIME LEFT</span><strong>{clock}</strong></div><div className="your-score"><span>YOUR DELIVERIES</span><strong>{own?.score||0}</strong></div><div className="carry-status"><Package size={19}/><span>{own?.carrying?"Carrying · 15% slower":"Find a glowing canister"}<small>{own?.carrying?"Walk into the green exit to score.":"Touch a canister, then press Space or Grab."}</small></span></div></div>}
         {error&&<p role="alert" className="error-box room-error">{error}</p>}{notice&&<p role="status" className="notice">{notice}</p>}
         <div className="room-grid">
-          <div className="play-column"><div className="stage-bar"><span><span className={`signal-dot ${running?"":"idle"}`}/>{running?"LAB FLOOR · LIVE":"LAB FLOOR · STANDBY"}</span><button className="icon-button" aria-label="Toggle fullscreen" onClick={()=>{if(document.fullscreenElement)document.exitFullscreen?.();else stage.current?.requestFullscreen?.().catch(()=>setNotice("Fullscreen isn't available here. You can still play normally."));}}><Maximize2 size={15}/></button></div>
-            <div ref={stage} className="stage" data-testid="game-stage"><canvas ref={canvas} aria-label={`Lab floor with ${count} interns. ${running?"Move with WASD, arrows or the joystick. Grab with Space or the Grab button.":finished?"Round complete.":"Waiting for the host to start."}`}/>{!running&&!finished&&<div className="waiting-overlay"><div className="waiting-icon"><Users size={25}/></div><strong>{count<2?"The lab needs a crew.":"Everyone's clocked in."}</strong><span>{count<2?"Add a bot or share your code with a friend.":host?"Start the round when you're ready.":"Waiting for the host to start."}</span></div>}{finished&&<div className="finish-overlay"><Trophy size={34}/><strong>SHIFT COMPLETE</strong><span>{ranked[0]?.score?winners.length>1?`Shared top score: ${ranked[0].score} deliveries.`:`${ranked[0].name} led the shift with ${ranked[0].score} deliveries.`:"The lab survived. The canisters are still waiting."}</span><small>Full results below ↓</small></div>}<div className="stage-corner mono">DELIVERY RUN 0.2</div></div>
+          <div className="play-column"><div className="stage-bar"><span><span className={`signal-dot ${running?"":"idle"}`}/>{running?"LAB FLOOR · LIVE":"LAB FLOOR · STANDBY"}</span><div className="stage-tools"><div className="view-picker" role="group" aria-label="Arena view"><button aria-pressed={viewState.kind==="2d"} onClick={()=>chooseView("2d")}>Classic 2D</button><button aria-pressed={viewState.kind==="3d"} onClick={()=>chooseView("3d")} disabled={viewState.loading}>{viewState.loading?"Loading 3D…":"3D"}</button></div><button className="icon-button" aria-label="Toggle fullscreen" onClick={()=>{if(document.fullscreenElement)document.exitFullscreen?.();else stage.current?.requestFullscreen?.().catch(()=>setNotice("Fullscreen isn't available here. You can still play normally."));}}><Maximize2 size={15}/></button></div></div>
+            <div ref={stage} className="stage" data-view={viewState.kind} data-testid="game-stage"><div ref={surface} className="arena-surface" role="img" aria-label={`Lab floor with ${count} interns. ${running?"Move with WASD, arrows or the joystick. Grab with Space or the Grab button.":finished?"Round complete.":"Waiting for the host to start."}`}/>{!running&&!finished&&<div className="waiting-overlay"><div className="waiting-icon"><Users size={25}/></div><strong>{count<2?"The lab needs a crew.":"Everyone's clocked in."}</strong><span>{count<2?"Add a bot or share your code with a friend.":host?"Start the round when you're ready.":"Waiting for the host to start."}</span></div>}{finished&&<div className="finish-overlay"><Trophy size={34}/><strong>SHIFT COMPLETE</strong><span>{ranked[0]?.score?winners.length>1?`Shared top score: ${ranked[0].score} deliveries.`:`${ranked[0].name} led the shift with ${ranked[0].score} deliveries.`:"The lab survived. The canisters are still waiting."}</span><small>Full results below ↓</small></div>}{debugMode&&<output className="arena-debug" aria-label="Renderer diagnostics">{debugStats?`${debugStats.kind.toUpperCase()} · ${debugStats.fps?debugStats.fps.toFixed(0)+" FPS":"warming up"} · ${debugStats.frameMs.toFixed(1)} ms\n${debugStats.calls} calls · ${debugStats.triangles.toLocaleString()} triangles\n${debugStats.geometries} geometries · ${debugStats.textures} textures · ${debugStats.pixelRatio.toFixed(1)}× DPR`:"Renderer starting…"}</output>}<div className="stage-corner mono">DELIVERY RUN 0.2</div></div>
+            {viewState.notice&&<div className="render-notice" role="status"><span>{viewState.notice}</span><button onClick={()=>chooseView("3d")}>Try 3D again</button></div>}
             <div className="controls-bar"><div className="keyboard-hint"><span className="keys"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></span><p><strong>Move your intern</strong><span>WASD / arrows to move · Space to grab / drop</span></p></div><span className={`movement-check ${moving?"done":""}`}>{moving?<CheckCheck size={17}/>:<Radio size={17}/>} {moving?"Movement detected":"Ready for movement"}</span></div>
             {running&&<div className="touch-controls"><div className="joystick" role="application" aria-label="Touch joystick. Drag to move your intern." onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);moveStick(e);}} onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))moveStick(e);}} onPointerUp={e=>{e.currentTarget.releasePointerCapture(e.pointerId);joystick.current={x:0,y:0};input.current={x:0,y:0};setStick({x:0,y:0});}} onPointerCancel={()=>{joystick.current={x:0,y:0};input.current={x:0,y:0};setStick({x:0,y:0});}}><ArrowUp className="joy-up" size={14}/><ArrowDown className="joy-down" size={14}/><ArrowLeft className="joy-left" size={14}/><ArrowRight className="joy-right" size={14}/><span className="joystick-thumb" style={{transform:`translate(${stick.x}px,${stick.y}px)`}}/></div><p className="mono">DRAG TO MOVE<br/><span>Carry it to the green exit.</span></p><button className={`grab-button ${own?.carrying?"carrying":""}`} disabled={grabPending||!connected||remaining===0} onClick={grab} aria-label={own?.carrying?"Drop canister":"Grab canister"}><Package size={24}/><strong>{grabPending?"…":own?.carrying?"DROP":"GRAB"}</strong><span>SPACE</span></button></div>}
             {finished&&<section className="results-panel" aria-label="Round results"><div className="results-title"><Trophy size={21}/><h2>Shift scoreboard</h2><span>ROUND {state.roundId}</span></div><ol>{ranked.map((p,i)=><li key={p.id}><span className="rank-number">{ranked.findIndex(other=>other.score===p.score)+1}</span><span className="result-dot" style={{background:p.color}}>{p.isBot?<Bot size={15}/>:p.name.slice(0,1)}</span><span className="result-name">{p.name}{p.id===session.id&&<small>YOU</small>}{p.isBot&&<small>BOT Lv1</small>}</span><strong>{p.score}<small>deliveries</small></strong></li>)}</ol>{host?<button className="primary" disabled={busy} onClick={()=>control("lobby")}><RotateCcw size={17}/> Play Again<ArrowRight size={18}/></button>:<p className="muted">Waiting for the host to start another shift.</p>}</section>}

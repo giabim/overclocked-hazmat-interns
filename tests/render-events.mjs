@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import {moduleFor} from "./render-harness.mjs";
+const {diffSnapshots,RenderEvents}=await moduleFor("render/events");
+const snapshot=(now,carrying=false,score=0)=>({code:"TEST2",roundId:1,status:"running",serverNow:now,players:[{id:"p",x:210,y:155,carrying,score}],anomalies:[{id:"a",carrierId:carrying?"p":null,respawnAt:0,generation:0}]});
+assert.deepEqual(diffSnapshots(null,snapshot(1)),[]);
+assert.deepEqual(diffSnapshots(snapshot(1),snapshot(100,true)),[{type:"grab",playerId:"p"}]);
+assert.deepEqual(diffSnapshots(snapshot(100,true),snapshot(200)),[{type:"drop",playerId:"p",x:210,y:155}]);
+assert.deepEqual(diffSnapshots(snapshot(100,true),snapshot(200,false,1)),[{type:"deliver",playerId:"p"}]);
+assert.deepEqual(diffSnapshots(snapshot(100),snapshot(200,false,1)),[{type:"deliver",playerId:"p"}],"missed grab snapshot still shows delivery");
+const hidden=snapshot(100);hidden.anomalies[0].respawnAt=200;hidden.anomalies[0].generation=1;
+const visible=snapshot(200);visible.anomalies[0].respawnAt=200;visible.anomalies[0].generation=1;
+assert.deepEqual(diffSnapshots(hidden,visible),[{type:"respawn",anomalyId:"a"}]);
+for(const next of [{...snapshot(200,true),roundId:2},{...snapshot(200,true),code:"OTHER"},{...snapshot(200,true),status:"lobby"},snapshot(1200,true),snapshot(100,true)])assert.deepEqual(diffSnapshots(snapshot(100),next),[]);
+const events=new RenderEvents();events.push(snapshot(1),100);events.push(snapshot(100,true),200);
+assert.deepEqual(events.drain(300),[{type:"grab",playerId:"p"}]);assert.deepEqual(events.drain(301),[]);
+events.push(snapshot(200),400);assert.deepEqual(events.drain(1401),[],"background events expire after 1s");
+events.push(snapshot(300,true),1500);events.reset();assert.deepEqual(events.drain(1501),[]);
+console.log("PASS: cosmetic grab/drop/delivery/respawn diffs, missing snapshots, round/room/stale guards, one-shot drain, event expiry/reset");

@@ -15,6 +15,10 @@ A browser delivery race for friends or solo players against Clumsy Intern bots. 
 
 ## Implementation
 
+Day 1 of the 3D migration adds an optional Three.js view. Classic 2D remains the default pending the laptop/phone performance gate. Choose **3D** in the arena toolbar, or use `?view=3d`; `?view=2d` forces Classic. The choice is saved when browser storage permits, with URL overrides taking priority on load. Add `&debug=1` (or `?debug=1`) for frame rate, draw calls, triangles, memory counts, and pixel ratio.
+
+One animation loop builds a `FrameView` from `MovementSync` and passes it to either renderer. The existing 2D drawing and label layout were extracted without changing their drawing commands. The 3D foundation uses colored capsules, canisters, blob shadows, a self ring, projected labels, and a fixed 60° camera that fits the entire arena. Three.js loads only when 3D is requested. Missing WebGL2, import failure/timeout, context loss, resize failure, repeated drawing errors, or persistently slow frames switch to Classic 2D while the round continues. The server, database, bots, input handlers, and movement-sync code are unchanged by this migration. See `docs/3D_Day_1_Report.md` for scope, saved checkpoints, tests, and the pending device gate.
+
 React/TypeScript and canvas render the game. A Sites Worker and D1 store authoritative rooms, players, canister ownership, scores, and round deadlines. The client sends its predicted position, movement direction, and monotonic input/interaction counters. The server accepts displacement up to `220 × carrying ratio × elapsed seconds × 1.3 + 10px`, otherwise moves only that far toward the request, and clamps to the arena. Elapsed time is bounded by the current round, rather than a 350ms per-request cap. Grabs and deliveries use this accepted position. Direction-only requests from older clients remain supported.
 
 Sync uses one `db.batch()` round trip per request. The batch validates the session, updates movement and ownership, claims elapsed simulation time, advances bots, resolves deliveries, checks the deadline, and returns a snapshot. The SQL compare-and-set uses a monotonically increasing simulation timestamp and a per-batch claim token; requests with overlapping timestamps cannot replay the same elapsed time.
@@ -35,6 +39,7 @@ Session secrets are per-tab, hashed in the database, and omitted from snapshots.
 - `app/api/room/route.ts`: create/join, host actions, bots, and lifecycle.
 - `lib/room-engine.ts`: authoritative batched sync and bot simulation.
 - `lib/movement-sync.ts`: prediction acknowledgement history, bounded corrections, remote interpolation, and poll timing.
+- `lib/render/`: common frame/events, Classic 2D renderer, 3D renderer, camera fitting, preference selection, and fallback controller.
 - `lib/bot-settings.ts`: gameplay and bot tuning values.
 - `db/schema.ts`, `drizzle/`: durable schema and migrations.
 - `tests/`: regression and gameplay integration checks.
@@ -46,6 +51,11 @@ node node_modules/typescript/bin/tsc --noEmit
 node tests/multiplayer.mjs --in-process
 node tests/day2.mjs
 node tests/movement.mjs
+node tests/render-2d.mjs
+node tests/render-events.mjs
+node tests/render-coords.mjs
+node tests/render-fallback.mjs
+node tests/render-scene.mjs
 ```
 
 Use the Sites build helper for deployment builds. Generate future migrations with `node node_modules/drizzle-kit/bin.cjs generate`, then apply only pending SQL files to the local preview database. Hosted migrations are applied during publishing.
