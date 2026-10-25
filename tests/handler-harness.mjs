@@ -7,7 +7,7 @@ import path from "node:path";
 import ts from "typescript";
 const output=path.resolve(".sites-runtime/handler-test");await mkdir(output,{recursive:true});
 const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
-for(const name of ["game","bot-settings","room-engine"]){
+for(const name of ["game","bot-settings","room-engine","movement-sync"]){
  let text=await readFile(`lib/${name}.ts`,"utf8");text=text.replaceAll('"./game"','"./game.mjs"').replaceAll('"./bot-settings"','"./bot-settings.mjs"');
  await writeFile(path.join(output,`${name}.mjs`),compile(text));
 }
@@ -29,6 +29,7 @@ let batchCalls=0;let lastBatchSize=0;
 const {env}=await import(pathToFileURL(path.join(output,"env.mjs")).href);
 env.DB={prepare:sql=>new Prepared(sql),async batch(statements){batchCalls++;lastBatchSize=statements.length;sqlite.exec("BEGIN");try{const results=statements.map(s=>s.execute());sqlite.exec("COMMIT");return results;}catch(e){sqlite.exec("ROLLBACK");throw e;}}};
 const {POST}=await import(pathToFileURL(path.join(output,"route.mjs")).href);
+export const {MovementSync,pollDelay}=await import(pathToFileURL(path.join(output,"movement-sync.mjs")).href);
 export const transport=async(url,options)=>POST(new Request(url,options));
 export const inspect=(sql,...args)=>sqlite.prepare(sql).all(...args);
 export const execute=(sql,...args)=>sqlite.prepare(sql).run(...args);

@@ -1,4 +1,4 @@
-import { advance, ONLINE_MS, WORLD } from "./game";
+import { ONLINE_MS, WORLD } from "./game";
 import { BOT_SETTINGS as BOT, ROUND } from "./bot-settings";
 export type RoomRow={code:string;host_id:string;status:string;created_at:number;expires_at:number;round_ends_at:number;round_id:number;sim_at:number;revision:number};
 export type PlayerRow={id:string;room_code:string;token_hash:string;name:string;color:string;x:number;y:number;vx:number;vy:number;seq:number;last_at:number;joined_at:number;is_bot:number;bot_level:number;score:number;interact_seq:number};
@@ -7,7 +7,7 @@ export const onlineWhere="(is_bot=1 OR last_at>?)";
 export function publicState(room:RoomRow,players:PlayerRow[],anomalies:AnomalyRow[],now:number){
   const status=room.status==="running"&&room.round_ends_at>0&&now>=room.round_ends_at?"results":room.status;
   return {code:room.code,hostId:room.host_id,status,serverNow:now,roundEndsAt:room.round_ends_at,roundId:room.round_id,revision:room.revision,
-    players:players.map(p=>({...advance(p,now,status==="running"),id:p.id,name:p.name,color:p.color,vx:status==="running"&&now-p.last_at<350?p.vx:0,vy:status==="running"&&now-p.last_at<350?p.vy:0,seq:p.seq,interactSeq:p.interact_seq,connected:!!p.is_bot||now-p.last_at<3000,isBot:!!p.is_bot,level:1,score:p.score,carrying:anomalies.some(a=>a.carrier_id===p.id)})),
+    players:players.map(p=>({x:p.x,y:p.y,positionAt:p.last_at,id:p.id,name:p.name,color:p.color,vx:status==="running"?p.vx:0,vy:status==="running"?p.vy:0,seq:p.seq,interactSeq:p.interact_seq,connected:!!p.is_bot||now-p.last_at<3000,isBot:!!p.is_bot,level:1,score:p.score,carrying:anomalies.some(a=>a.carrier_id===p.id)})),
     anomalies:anomalies.map(a=>({id:a.id,x:a.x,y:a.y,carrierId:a.carrier_id,respawnAt:a.respawn_at,generation:a.generation})),
   };
 }
@@ -23,7 +23,7 @@ export async function snapshot(db:D1Database,code:string,now:number){
 
 // Everything in this function is executed in one D1 batch. The SQL state machine
 // claims elapsed time once per room; clients never advance bots or award points.
-export async function synchronize(db:D1Database,s:{code:string;id:string;hash:string;seq:number;dx:number;dy:number;interactSeq:number},now:number){
+export async function synchronize(db:D1Database,s:{code:string;id:string;hash:string;seq:number;dx:number;dy:number;interactSeq:number;x?:number;y?:number},now:number){
   const requestId=crypto.randomUUID();const cutoff=now-ONLINE_MS;
   const statements:D1PreparedStatement[]=[];
   const q=(sql:string,...args:(string|number|null)[])=>statements.push(db.prepare(sql).bind(...args));
@@ -31,17 +31,26 @@ export async function synchronize(db:D1Database,s:{code:string;id:string;hash:st
   const authArgs=[s.id,s.code,s.hash,cutoff,now] as const;
   const carrying="EXISTS(SELECT 1 FROM anomalies a WHERE a.carrier_id=players.id)";
   const speed=`${WORLD.speed}*CASE WHEN ${carrying} THEN ${ROUND.carrySpeedRatio} ELSE 1 END`;
-  // Previous intent is applied only until the deadline; carrying slows both old
-  // movement and the new velocity. A separate monotonic counter deduplicates Space.
-  q(`UPDATE players SET
-    x=MAX(32,MIN(928,x+CASE WHEN (SELECT status FROM rooms WHERE code=?)='running' THEN vx*MAX(0,MIN(350,MIN(?,(SELECT round_ends_at FROM rooms WHERE code=?))-last_at))/1000 ELSE 0 END)),
-    y=MAX(32,MIN(568,y+CASE WHEN (SELECT status FROM rooms WHERE code=?)='running' THEN vy*MAX(0,MIN(350,MIN(?,(SELECT round_ends_at FROM rooms WHERE code=?))-last_at))/1000 ELSE 0 END)),
+  // Validate the client's predicted position against elapsed server time, before
+  // grabs/deliveries. Materialize the old position so x/y share the same origin.
+  // Older clients without x/y can still send direction-only movement.
+  q(`WITH origin AS MATERIALIZED (
+      SELECT players.id,x,y,vx,vy,rooms.status,
+        CASE WHEN rooms.status='running' THEN MAX(0,MIN(?,rooms.round_ends_at)-MAX(last_at,rooms.round_ends_at-${ROUND.durationMs}))/1000.0 ELSE 0 END AS elapsed,
+        ${speed} AS speed
+      FROM players JOIN rooms ON rooms.code=players.room_code WHERE players.id=? AND players.room_code=?),
+    target AS MATERIALIZED (SELECT *,COALESCE(?,x+vx*elapsed) AS tx,COALESCE(?,y+vy*elapsed) AS ty,speed*elapsed*1.3+10 AS allowance FROM origin),
+    accepted AS MATERIALIZED (SELECT id,
+      MAX(32,MIN(928,x+CASE WHEN status='running' THEN (tx-x)*MIN(1,allowance/MAX(0.000001,sqrt((tx-x)*(tx-x)+(ty-y)*(ty-y)))) ELSE 0 END)) AS x,
+      MAX(32,MIN(568,y+CASE WHEN status='running' THEN (ty-y)*MIN(1,allowance/MAX(0.000001,sqrt((tx-x)*(tx-x)+(ty-y)*(ty-y)))) ELSE 0 END)) AS y FROM target)
+    UPDATE players SET
+    x=(SELECT x FROM accepted WHERE id=players.id),y=(SELECT y FROM accepted WHERE id=players.id),
     vx=CASE WHEN (SELECT status='running' AND round_ends_at>? FROM rooms WHERE code=?) THEN ?*(${speed}) ELSE 0 END,
     vy=CASE WHEN (SELECT status='running' AND round_ends_at>? FROM rooms WHERE code=?) THEN ?*(${speed}) ELSE 0 END,
     action_kind=CASE WHEN interact_seq<? AND (SELECT status='running' AND round_ends_at>? FROM rooms WHERE code=?) THEN CASE WHEN ${carrying} THEN 2 ELSE 1 END ELSE 0 END,
     interact_seq=MAX(interact_seq,?),last_at=?,seq=?
-    WHERE id=? AND room_code=? AND is_bot=0 AND token_hash=? AND last_at>? AND seq<? AND ${auth}`,
-    s.code,now,s.code,s.code,now,s.code,now,s.code,s.dx,now,s.code,s.dy,s.interactSeq,now,s.code,s.interactSeq,now,s.seq,s.id,s.code,s.hash,cutoff,s.seq,...authArgs);
+    WHERE id=? AND room_code=? AND is_bot=0 AND token_hash=? AND last_at>? AND last_at<=? AND seq<? AND ${auth}`,
+    now,s.id,s.code,s.x??null,s.y??null,now,s.code,s.dx,now,s.code,s.dy,s.interactSeq,now,s.code,s.interactSeq,now,s.seq,s.id,s.code,s.hash,cutoff,now,s.seq,...authArgs);
   // Carry coordinates are persisted before an expired human is removed.
   q(`UPDATE anomalies SET x=COALESCE((SELECT x FROM players WHERE id=carrier_id),x),y=COALESCE((SELECT y FROM players WHERE id=carrier_id),y),carrier_id=NULL
     WHERE room_code=? AND carrier_id IN(SELECT id FROM players WHERE room_code=? AND is_bot=0 AND last_at<=?) AND ${auth}`,s.code,s.code,cutoff,...authArgs);

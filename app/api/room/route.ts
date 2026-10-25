@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { COLORS, direction, normalizeName, ONLINE_MS } from "../../../lib/game";
+import { clamp, COLORS, direction, normalizeName, ONLINE_MS, WORLD } from "../../../lib/game";
 import { ROUND } from "../../../lib/bot-settings";
 import { onlineWhere, snapshot, synchronize, type RoomRow, type PlayerRow } from "../../../lib/room-engine";
 export const dynamic="force-dynamic";
@@ -62,7 +62,10 @@ export async function POST(request:Request){
    const seq=typeof body.seq==="number"&&Number.isSafeInteger(body.seq)?body.seq:-1;
    const interactSeq=typeof body.interactSeq==="number"&&Number.isSafeInteger(body.interactSeq)?body.interactSeq:0;
    const d=direction(body.dx,body.dy);
-   const state=await synchronize(db,{code,id,hash,seq,dx:d.x,dy:d.y,interactSeq},now);
+   const hasPosition=body.x!==undefined||body.y!==undefined;
+   if(hasPosition&&(typeof body.x!=="number"||typeof body.y!=="number"||!Number.isFinite(body.x)||!Number.isFinite(body.y)))throw new GameError("Invalid movement position.");
+   const position=hasPosition?{x:clamp(body.x as number,WORLD.margin,WORLD.width-WORLD.margin),y:clamp(body.y as number,WORLD.margin,WORLD.height-WORLD.margin)}:{};
+   const state=await synchronize(db,{code,id,hash,seq,dx:d.x,dy:d.y,interactSeq,...position},now);
    if(!state)throw new GameError("You were disconnected. Join the lab again.",401);
    return reply({state});
   }

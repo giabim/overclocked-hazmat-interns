@@ -1,11 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCheck, ChevronRight, Copy, FlaskConical, HelpCircle, LogOut, Maximize2, Radio, RotateCcw, Users, X, Zap, Bot, Package, Trophy, Plus } from "lucide-react";
-import { clamp, COAST_MS, direction, WORLD } from "../lib/game";
-import { ROUND } from "../lib/bot-settings";
+import { clamp, direction, WORLD } from "../lib/game";
+import { MovementSync, pollDelay } from "../lib/movement-sync";
 
 type Session = {code:string;id:string;token:string};
-type Player = {id:string;name:string;color:string;x:number;y:number;vx:number;vy:number;seq:number;connected:boolean;isBot:boolean;level:number;score:number;carrying:boolean;interactSeq:number};
+type Player = {id:string;name:string;color:string;x:number;y:number;positionAt:number;vx:number;vy:number;seq:number;connected:boolean;isBot:boolean;level:number;score:number;carrying:boolean;interactSeq:number};
 type Anomaly={id:string;x:number;y:number;carrierId:string|null;respawnAt:number;generation:number};
 type State = {code:string;hostId:string;status:string;serverNow:number;players:Player[];anomalies:Anomaly[];roundEndsAt:number;roundId:number;revision:number};
 type Result = {session?:Session;state?:State;error?:string};
@@ -35,17 +35,17 @@ export default function Home() {
   const stateRef=useRef<State|null>(null); const input=useRef({x:0,y:0}); const keys=useRef(new Set<string>());
   const joystick=useRef({x:0,y:0}); const [stick,setStick]=useState({x:0,y:0});
   const sessionRef=useRef<Session|null>(null); const rttRef=useRef(0); const snapshotAt=useRef(0);
-  const visuals=useRef<Record<string,{x:number;y:number}>>({}); const seq=useRef(Date.now()); const movingRef=useRef(false);
+  const movement=useRef(new MovementSync()); const seq=useRef(Date.now()); const movingRef=useRef(false);
   const errors=useRef(0); const helpRef=useRef(false);
   const interaction=useRef(0); const kickSync=useRef<()=>void>(()=>{});
   const [grabPending,setGrabPending]=useState(false); const [remaining,setRemaining]=useState(180);
   const update=useCallback((next:State)=>{
     if(stateRef.current && next.code===stateRef.current.code && next.serverNow<stateRef.current.serverNow) return;
-    snapshotAt.current=performance.now(); stateRef.current=next;setState(next);
+    snapshotAt.current=performance.now();movement.current.receive(next,sessionRef.current?.id||"",snapshotAt.current,rttRef.current);stateRef.current=next;setState(next);
     const own=next.players.find(p=>p.id===sessionRef.current?.id);if(own&&own.interactSeq>=interaction.current)setGrabPending(false);
   },[]);
   const reset=useCallback((message="")=>{
-    sessionStorage.removeItem(SESSION_KEY);sessionRef.current=null;setSession(null);setState(null);stateRef.current=null;visuals.current={};setConnected(false);input.current={x:0,y:0};keys.current.clear();joystick.current={x:0,y:0};setStick({x:0,y:0});setMoving(false);movingRef.current=false;setGrabPending(false);setError("");setNotice(message);
+    sessionStorage.removeItem(SESSION_KEY);sessionRef.current=null;setSession(null);setState(null);stateRef.current=null;movement.current.reset();setConnected(false);input.current={x:0,y:0};keys.current.clear();joystick.current={x:0,y:0};setStick({x:0,y:0});setMoving(false);movingRef.current=false;setGrabPending(false);setError("");setNotice(message);
   },[]);
   useEffect(()=>{
     try {
@@ -65,7 +65,8 @@ export default function Home() {
       const current=session!;const start=performance.now();
       try {
         const d=direction(input.current.x,input.current.y);
-        const result=await call({action:"sync",...current,seq:++seq.current,dx:d.x,dy:d.y,interactSeq:interaction.current});
+        const nextSeq=++seq.current;const position=movement.current.recordSent(nextSeq);
+        const result=await call({action:"sync",...current,seq:nextSeq,dx:d.x,dy:d.y,...position,interactSeq:interaction.current});
         if(cancelled)return;
         const elapsed=Math.round(performance.now()-start);rttRef.current=elapsed;setLatency(elapsed);
         if(result.state)update(result.state);setConnected(true);errors.current=0;setError("");
@@ -76,7 +77,7 @@ export default function Home() {
         if(errors.current>=3)setError("Connection interrupted. Reconnecting automatically…");
       }
       inFlight=false;
-      if(!cancelled)timeout=setTimeout(sync,stateRef.current?.status==="running"?120:850);
+      if(!cancelled)timeout=setTimeout(sync,pollDelay(start,performance.now(),stateRef.current?.status==="running"));
     }
     kickSync.current=()=>{clearTimeout(timeout);if(!inFlight)void sync();};
     sync();return()=>{cancelled=true;clearTimeout(timeout);kickSync.current=()=>{};};
@@ -141,15 +142,8 @@ export default function Home() {
       const labels:{text:string;x:number;y:number;width:number;color:string;px:number;py:number}[]=[];
       for(const p of s.players){
         const isSelf=p.id===session.id;const running=s.status==="running";
-        const elapsed=Math.min((time-snapshotAt.current+rttRef.current/2)/1000,COAST_MS/1000);
-        const tx=clamp(p.x+(running?p.vx*elapsed:0),32,928);const ty=clamp(p.y+(running?p.vy*elapsed:0),32,568);
-        let v=visuals.current[p.id];if(!v){v=visuals.current[p.id]={x:tx,y:ty};}
-        if(isSelf&&running){
-          const d=input.current;v.x=clamp(v.x+d.x*WORLD.speed*(p.carrying?ROUND.carrySpeedRatio:1)*dt,32,928);v.y=clamp(v.y+d.y*WORLD.speed*(p.carrying?ROUND.carrySpeedRatio:1)*dt,32,568);
-          // Correct a bounded portion each frame; the server remains authoritative.
-          const factor=1-Math.exp(-dt*6);v.x+=(tx-v.x)*factor;v.y+=(ty-v.y)*factor;
-          if(!movingRef.current&&Math.hypot(d.x,d.y)>.1){movingRef.current=true;setMoving(true);}
-        }else {const factor=1-Math.exp(-dt*15);v.x+=(tx-v.x)*factor;v.y+=(ty-v.y)*factor;}
+        const v=(isSelf?movement.current.localPosition(input.current,p.carrying,dt):movement.current.remotePosition(p.id,time,dt))??{x:p.x,y:p.y};
+        if(isSelf&&running&&!movingRef.current&&Math.hypot(input.current.x,input.current.y)>.1){movingRef.current=true;setMoving(true);}
         c.globalAlpha=p.connected?1:.45;
         if(isSelf){c.strokeStyle=p.color;c.globalAlpha=.35;c.lineWidth=2;c.beginPath();c.arc(v.x,v.y,28,0,Math.PI*2);c.stroke();c.globalAlpha=1;}
         c.fillStyle="#060b0880";c.beginPath();c.ellipse(v.x,v.y+20,22,8,0,0,Math.PI*2);c.fill();
