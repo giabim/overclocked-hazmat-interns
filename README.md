@@ -2,7 +2,7 @@
 
 A three-minute browser party game for 2–8 humans and bots. Deliver glowing canisters, dodge escaped specimens, and freeze the chaos. Most points wins.
 
-**Play:** https://overclocked-hazmat-interns.minty-elm-6294.chatgpt.site
+**Play:** https://overclocked-hazmat-interns.giakhiemhcmc.chatgpt.site
 
 ## Play immediately
 

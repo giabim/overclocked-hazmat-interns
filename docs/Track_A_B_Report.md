@@ -4,7 +4,7 @@ Date: 2026-10-31
 
 Project: Overclocked — The Hazmat Interns
 
-Live game: https://overclocked-hazmat-interns.minty-elm-6294.chatgpt.site
+Live game: https://overclocked-hazmat-interns.giakhiemhcmc.chatgpt.site
 
 Source: https://github.com/giabim/overclocked-hazmat-interns
 
@@ -45,7 +45,7 @@ node node_modules/typescript/bin/tsc --noEmit
 node tests/verify-v3.mjs
 ```
 
-The combined runner contains 19 suites. Coverage includes:
+TypeScript and all 19 suites passed. The production build passed; the separate 3D chunk and its static dependencies total 149,932 gzip bytes, below 204,800 bytes. Source was pushed to GitHub; hosted version 7 deployed successfully. The combined runner contains 19 suites. Coverage includes:
 
 - Map rectangularity, reachable floor/exit/spawns, no dead ends, correct dimensions.
 - 2,000 seeded collision proposals, doorway passage, swept wall blocking, Classic bounds.
@@ -62,7 +62,7 @@ The combined runner contains 19 suites. Coverage includes:
 
 After a production build, `node tests/render-bundle.mjs` checks a separate lazy-loaded 3D entry and its static dependencies against the existing 200 KiB gzip limit. No gameplay dependency upgrade was required.
 
-Browser preview verification covers fresh one-click solo creation, mixed-level bots, visible countdown, transition to live Breach, wall-limited movement, foam charge consumption, minimap/specimens and WebGL failure fallback. The local D1 migration executed successfully. Build and publication results are reported with the delivered release.
+Browser preview verification covers fresh one-click solo creation, mixed-level bots, visible countdown, transition to live Breach, wall-limited movement, foam charge consumption, minimap/specimens and WebGL failure fallback. A real three-minute browser round completed with the top-three podium, final scoreboard, session-best line and Play Again focused. Play Again returned to the lobby with the same three bots at levels 1, 2 and 3. The local D1 migration executed successfully. Build and publication results are reported with the delivered release.
 
 ## Verification limits
 
