@@ -1,15 +1,5 @@
-// CPU geometry checks; this does not claim GPU or phone performance validation.
-import assert from "node:assert/strict";
-import {moduleFor} from "./render-harness.mjs";
-const {ThreeRenderer}=await moduleFor("render/three/arena3d");
-const renderer=new ThreeRenderer(()=>{});
-const geometry=renderer.capsule;geometry.computeBoundingBox();
-assert.ok(geometry.boundingBox.min.y>=-.7&&geometry.boundingBox.max.y<=.7);
-assert.ok(geometry.boundingBox.max.x<=.451);assert.ok(geometry.index.count/3<1000);
-for(let i=0;i<8;i++){
- const intern=renderer.intern({id:String(i),name:"Test",x:120,y:520,color:"#e8fa79",isBot:i>0});
- assert.ok(intern.root.children.length>=4);assert.equal(intern.root.children[4].visible,i>0);
- assert.ok(intern.held.position.y>.5);assert.ok(intern.material.isMeshStandardMaterial);assert.ok(intern.visor.isMeshPhysicalMaterial);
-}
-assert.equal(renderer.interns.size,8);renderer.dispose();renderer.dispose();assert.equal(renderer.interns.size,0);
-console.log(`PASS: ${geometry.index.count/3} triangles per capsule, intended footprint/height, eight CPU models, carrier/bot markers, repeated scene cleanup (GPU verification separate)`);
+// Geometry and material checks. GPU/phone timing remains a separate gate.
+import assert from "node:assert/strict";import {moduleFor} from "./render-harness.mjs";
+const {ThreeRenderer}=await moduleFor("render/three/arena3d"),{turnToward}=await moduleFor("render/three/models");const renderer=new ThreeRenderer(()=>{});let max=0;
+for(let n=0;n<8;n++){const intern=renderer.intern({id:String(n),name:"Test",x:120,y:520,color:"#e8fa79",isBot:n>0});let triangles=0;intern.root.traverse(o=>{if(o.geometry)triangles+=(o.geometry.index?.count??o.geometry.getAttribute("position").count)/3;});assert.ok(triangles<=1000,`hazmat ${triangles} triangles`);max=Math.max(max,triangles);assert.equal(intern.antenna.visible,n>0);assert.ok(intern.left&&intern.right);assert.ok(intern.material.vertexColors);assert.ok(intern.visor.isMeshStandardMaterial);assert.equal(intern.visor.isMeshPhysicalMaterial,undefined);}
+assert.ok(Math.abs(turnToward(0,Math.PI,.016))<=12*.016+.00001);assert.ok(Math.abs(turnToward(Math.PI-.01,-Math.PI+.01,.1)-(Math.PI+.01))<.0001);const box=renderer.humanGeo.boundingBox;assert.ok(box.min.y>=-.001&&box.max.y<=1.7);const slime=renderer.specimen("slime"),hound=renderer.specimen("hound");assert.equal(slime.children[2].visible,true);assert.equal(hound.children[2].visible,false);assert.ok(hound.children[0].geometry.index.count/3<500);renderer.dispose();renderer.dispose();assert.equal(renderer.interns.size,0);console.log(`PASS: ${max} triangles per complete hazmat, merged boots/belt/tank/helmet, articulated arms, shortest-path capped turning, distinct specimens and repeated cleanup`);

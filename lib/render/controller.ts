@@ -1,74 +1,28 @@
-import {followOffset} from "./breach-overlay";
-import {Canvas2DRenderer} from "./canvas2d";
-import {FrameHealth} from "./select";
-import type {ArenaRenderer,FrameView,RendererStats,ViewKind} from "./types";
-export type ViewState={kind:ViewKind;loading:boolean;notice:string};
-export type DebugStats=RendererStats&{fps:number;frameMs:number;kind:ViewKind};
+import type {ArenaRenderer,FrameView,RendererStats} from "./types";
+import {readQuality,type Quality} from "./quality";
+export type ViewState={kind:"3d";loading:boolean;notice:string;error?:boolean;reconnecting?:boolean};
+export type DebugStats=RendererStats&{fps:number;frameMs:number;kind:"3d"};
 type Factory=(failure:(message:string)=>void)=>ArenaRenderer;
-type Options={classic?:()=>ArenaRenderer;load3d?:()=>Promise<Factory>;timeoutMs?:number};
+type Options={load3d?:()=>Promise<Factory>;timeoutMs?:number;recoveryMs?:number;debug?:boolean};
+let preload:Promise<typeof import("./three/arena3d")>|null=null;
+export function preload3D(){return preload??=import("./three/arena3d").catch(e=>{preload=null;throw e;});}
 export class RendererController{
-  private renderer:ArenaRenderer|null=null;
-  private host:HTMLDivElement|null=null;
-  private width=1;private height=1;private generation=0;private disposed=false;private failures=0;
-  private lastView:FrameView|null=null;private health=new FrameHealth();private debugAt=0;
-  private visibility=()=>this.health.reset();
-  private classic:()=>ArenaRenderer;
-  private load3d:()=>Promise<Factory>;
-  private state:ViewState={kind:"2d",loading:false,notice:""};
-  constructor(private changed:(state:ViewState)=>void,private debug:(stats:DebugStats)=>void,private options:Options={}){
-    this.classic=options.classic??(()=>new Canvas2DRenderer());
-    this.load3d=options.load3d??(()=>import("./three/arena3d").then(module=>failure=>new module.ThreeRenderer(failure)));
-  }
-  mount(host:HTMLDivElement,view:ViewKind){
-    this.host=host;this.renderer=this.classic();this.renderer.mount(host);
-    document.addEventListener("visibilitychange",this.visibility);
-    this.changed(this.state);if(view==="3d")void this.choose("3d");
-  }
-  private emit(state:ViewState){this.state=state;if(!this.disposed)this.changed(state);}
-  private clean(renderer:ArenaRenderer|null){try{renderer?.dispose();}catch{/* Do not strand the working renderer during cleanup. */}}
-  private classicView(notice=""){
-    this.generation++;this.failures=0;this.health.reset();
-    if(this.host&&this.renderer?.kind!=="2d"){
-      const old=this.renderer;this.renderer=this.classic();this.renderer.mount(this.host);this.renderer.resize(this.width,this.height);
-      if(this.lastView)this.renderer.frame(this.lastView);this.clean(old);
-    }
-    this.emit({kind:"2d",loading:false,notice});
-  }
-  async choose(kind:ViewKind){
-    if(this.disposed||!this.host)return;
-    if(kind==="2d"){this.classicView();return;}
-    if(this.renderer?.kind==="3d"){this.emit({kind:"3d",loading:false,notice:""});return;}
-    const generation=++this.generation;this.emit({kind:"2d",loading:true,notice:""});
-    let timer:ReturnType<typeof setTimeout>|undefined;let candidate:ArenaRenderer|null=null;
-    try{
-      const factory=await Promise.race([this.load3d(),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error("3D loading timed out")),this.options.timeoutMs??8000);})]);
-      if(this.disposed||generation!==this.generation)return;
-      candidate=factory(message=>{if(!this.disposed&&this.renderer===candidate)this.classicView(message);});
-      candidate.mount(this.host);candidate.resize(this.width,this.height);
-      if(this.lastView)candidate.frame(this.lastView);
-      const old=this.renderer;this.renderer=candidate;this.clean(old);this.failures=0;this.health.reset();
-      this.emit({kind:"3d",loading:false,notice:""});
-    }catch{
-      this.clean(candidate);
-      if(!this.disposed&&generation===this.generation)this.classicView("3D isn't available here. You can keep playing in Classic 2D.");
-    }finally{clearTimeout(timer);}
-  }
-  resize(width:number,height:number){
-    this.width=width;this.height=height;
-    try{this.renderer?.resize(width,height);}
-    catch{if(this.renderer?.kind==="3d")this.classicView("3D could not resize the lab. Classic 2D is ready.");}
-  }
-  frame(view:FrameView){
-    if(!this.renderer||this.disposed)return;this.lastView=view;
-    try{this.renderer.frame(view);this.failures=0;}
-    catch{if(++this.failures>=3&&this.renderer.kind==="3d")this.classicView("3D had trouble drawing the lab. Classic 2D is ready.");}
-    const tooSlow=this.health.observe(view.time);
-    if(this.renderer.kind==="3d"&&!document.hidden&&tooSlow)this.classicView("Switched to Classic 2D for smoother play.");
-    if(view.time-this.debugAt>=500){
-      this.debugAt=view.time;const frameMs=this.health.averageMs;
-      this.debug({...this.renderer.stats?.()??{calls:0,triangles:0,geometries:0,textures:0,pixelRatio:Math.min(window.devicePixelRatio||1,2)},fps:frameMs?1000/frameMs:0,frameMs,kind:this.renderer.kind});
-    }
-  }
-  worldPoint(x:number,y:number){if(this.renderer?.worldPoint)return this.renderer.worldPoint(x,y);const offset=this.lastView?.mode==="breach"?followOffset(this.lastView):{x:0,y:0};return{x:x*960+offset.x,y:y*600+offset.y};}
-  dispose(){this.disposed=true;this.generation++;document.removeEventListener("visibilitychange",this.visibility);this.clean(this.renderer);this.renderer=null;this.host=null;this.lastView=null;}
+ private renderer:ArenaRenderer|null=null;private host:HTMLDivElement|null=null;private width=1;private height=1;private generation=0;private disposed=false;private drawFailures=0;private recoveryFailures=0;private recovering=false;private timer:ReturnType<typeof setTimeout>|undefined;private lastView:FrameView|null=null;private debugAt=0;private quality:Quality="auto";
+ constructor(private changed:(s:ViewState)=>void,private debug:(s:DebugStats)=>void,private options:Options={}){}
+ mount(host:HTMLDivElement){this.host=host;this.quality=readQuality();void this.load(false);}
+ private emit(s:Omit<ViewState,"kind">){if(!this.disposed)this.changed({kind:"3d",...s});}
+ private clean(r:ArenaRenderer|null){try{r?.dispose();}catch{}}
+ private fail(){this.recovering=false;clearTimeout(this.timer);this.clean(this.renderer);this.renderer=null;this.emit({loading:false,error:true,notice:"This game needs 3D graphics (WebGL 2)"});}
+ private issue(message:string){if(this.disposed)return;if(message==="context-restored"){if(this.recovering){clearTimeout(this.timer);void this.load(true);}return;}if(this.recovering)return;this.recovering=true;this.emit({loading:true,reconnecting:true,notice:"Reconnecting graphics…"});this.timer=setTimeout(()=>void this.load(true),this.options.recoveryMs??3000);}
+ private async load(recovery:boolean){
+  if(this.disposed||!this.host)return;clearTimeout(this.timer);const generation=++this.generation;this.recovering=recovery;this.emit({loading:true,reconnecting:recovery,notice:recovery?"Reconnecting graphics…":"Powering up the lab…"});let candidate:ArenaRenderer|null=null,timer:ReturnType<typeof setTimeout>|undefined;
+  try{const factory=await Promise.race([this.options.load3d?.()??preload3D().then(m=>(failure:(message:string)=>void)=>new m.ThreeRenderer(failure)),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(Error("3D load timed out")),this.options.timeoutMs??8000);})]);if(this.disposed||generation!==this.generation)return;candidate=factory(message=>{if(this.renderer===candidate)this.issue(message);});candidate.mount(this.host);candidate.resize(this.width,this.height);candidate.setQuality?.(this.quality);if(this.lastView)candidate.frame(this.lastView);const old=this.renderer;this.renderer=candidate;this.clean(old);this.recovering=false;this.drawFailures=0;this.recoveryFailures=0;this.emit({loading:false,notice:""});}
+  catch{this.clean(candidate);if(this.disposed||generation!==this.generation)return;if(recovery&&++this.recoveryFailures<2){this.emit({loading:true,reconnecting:true,notice:"Reconnecting graphics…"});this.timer=setTimeout(()=>void this.load(true),this.options.recoveryMs??3000);}else this.fail();}finally{clearTimeout(timer);}
+ }
+ retry(){this.recoveryFailures=0;return this.load(false);}
+ setQuality(q:Quality){this.quality=q;this.renderer?.setQuality?.(q);}
+ resize(w:number,h:number){this.width=Math.max(1,w);this.height=Math.max(1,h);try{this.renderer?.resize(this.width,this.height);}catch{this.issue("resize");}}
+ frame(view:FrameView){this.lastView=view;if(this.renderer&&!this.recovering)try{this.renderer.frame(view);this.drawFailures=0;}catch{if(++this.drawFailures>=3)this.issue("draw");}if(this.options.debug&&view.time-this.debugAt>=500){this.debugAt=view.time;this.debug({...this.renderer?.stats?.()??{calls:0,triangles:0,geometries:0,textures:0,pixelRatio:1,tier:"unavailable"},kind:"3d",frameMs:view.dt*1000,fps:view.dt?1/view.dt:0});}}
+ worldPoint(x:number,y:number){return this.renderer?.worldPoint?.(x,y)??null;}
+ dispose(){this.disposed=true;this.generation++;clearTimeout(this.timer);this.clean(this.renderer);this.renderer=null;this.host=null;this.lastView=null;}
 }

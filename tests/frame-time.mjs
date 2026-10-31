@@ -1,0 +1,3 @@
+import assert from "node:assert/strict";import {moduleFor} from "./render-harness.mjs";
+const {frameDelta}=await moduleFor("render/frame-time"),{MovementSync}=await moduleFor("movement-sync");
+for(const fps of [10,15,20,60]){const m=new MovementSync();m.receive({code:"FRAME",roundId:1,status:"running",serverNow:0,players:[{id:"self",x:100,y:300,seq:0,positionAt:0}]},"self",0,0);let p;for(let i=0;i<fps;i++)p=m.localPosition({x:1,y:0},false,frameDelta(1000/fps));assert.ok(Math.abs(p.x-320)<.001,`${fps} FPS loses movement time`);}assert.equal(frameDelta(300),null);assert.equal(frameDelta(16,true),null);console.log("PASS: 10/15/20/60 FPS move at the same speed; hidden-tab gaps are skipped");

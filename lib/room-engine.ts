@@ -32,6 +32,11 @@ export async function synchronize(db:D1Database,s:Intent&{code:string;id:string;
  const players=rows.filter(p=>p.is_bot||Math.max(p.last_at,p.input_at)>cutoff);
  for(const a of anomalies)if(a.carrier_id&&!players.some(p=>p.id===a.carrier_id)){const old=rows.find(p=>p.id===a.carrier_id);if(old){a.x=old.x;a.y=old.y;}a.carrier_id=null;}
  const clock=Math.max(now,room.sim_at,...players.map(p=>p.input_at));
+ const readState=publicState({...room},players,anomalies,clock);
+ const actionable=players.some(p=>{if(p.input_seq<=p.seq)return false;try{const i=JSON.parse(p.input_json) as Intent;return (i.interactSeq??0)>p.interact_seq||(i.fireSeq??0)>p.fire_seq||(i.throwSeq??0)>p.throw_seq||Math.hypot((i.x??p.x)-p.x,(i.y??p.y)-p.y)>.01||i.dx||i.dy||p.vx||p.vy;}catch{return false;}});
+ // Idle/redundant polls do not contend for a sub-step. Fresh actions and movement
+ // still drain immediately, including the first input of a round.
+ if(room.world!=="{}"&&room.status==="running"&&clock<room.round_ends_at&&clock-room.sim_at<40&&!actionable&&players.some(p=>p.id===room.host_id))return{...readState,syncSkipped:true};
  const oldRevision=room.revision,oldStatus=room.status;
  const world=readWorld(room,players,anomalies,clock);advance(world,clock);
  if(!players.some(p=>p.id===room.host_id&&!p.is_bot))room.host_id=players.find(p=>!p.is_bot)!.id;
@@ -45,6 +50,6 @@ export async function synchronize(db:D1Database,s:Intent&{code:string;id:string;
   db.prepare(`UPDATE anomalies SET x=json_extract(j.value,'$.x'),y=json_extract(j.value,'$.y'),carrier_id=json_extract(j.value,'$.carrier_id'),respawn_at=json_extract(j.value,'$.respawn_at'),generation=json_extract(j.value,'$.generation') FROM json_each(?) AS j WHERE anomalies.id=json_extract(j.value,'$.id') AND room_code=? AND ${guard}`).bind(JSON.stringify(anomalies),code,code,claim),
   db.prepare(`DELETE FROM players WHERE room_code=? AND is_bot=0 AND MAX(last_at,input_at)<=? AND ${guard}`).bind(code,cutoff,code,claim),
  ]);
- if(!write[0].meta.changes)return snapshot(db,code,clock);
+ if(!write[0].meta.changes){const accepted=world.players.find(p=>p.id===id)!;return{...readState,casLost:true,players:readState.players.map(p=>p.id===id?{...p,x:accepted.x,y:accepted.y,vx:accepted.vx,vy:accepted.vy,seq:accepted.seq,positionAt:accepted.last_at}:p)};}
  room.revision=oldRevision+1;return publicState(room,players,anomalies,clock);
 }

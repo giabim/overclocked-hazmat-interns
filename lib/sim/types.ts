@@ -5,5 +5,6 @@ export type Intent={seq:number;dx:number;dy:number;interactSeq:number;x?:number;
 export type Monster={id:string;kind:"slime"|"hound";x:number;y:number;state:string;until:number;frozenUntil:number;targetId:string|null;chaseAt:number;aim:number;den:{x:number;y:number};patrol:{x:number;y:number};hits:{at:number;by:string}[];history:{at:number;x:number;y:number}[]};
 export type Pickup={id:string;x:number;y:number;readyAt:number};
 export type Grenade={id:string;ownerId:string;x:number;y:number;fromX:number;fromY:number;startedAt:number;explodeAt:number};
-export type WorldState={roundId:number;rng:number;monsters:Monster[];pickups:Pickup[];grenades:Grenade[]};
+export type PoseSample={at:number;x:number;y:number};
+export type WorldState={playerHistory?:Record<string,PoseSample[]>;roundId:number;rng:number;monsters:Monster[];pickups:Pickup[];grenades:Grenade[]};
 export type World=WorldState&{room:RoomRow;players:PlayerRow[];anomalies:AnomalyRow[]};

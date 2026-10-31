@@ -1,4 +1,4 @@
-export type ViewKind="2d"|"3d";
+export type ViewKind="3d";
 export type FramePlayer={
   id:string;name:string;color:string;x:number;y:number;
   posEpoch?:number;stunUntil?:number;immuneUntil?:number;slowUntil?:number;lastFireAt?:number;lastFireAim?:number;faceX?:number;faceY?:number;isSelf:boolean;isBot:boolean;level:number;carrying:boolean;connected:boolean;score:number;
@@ -7,7 +7,7 @@ export type FrameAnomaly={id:string;x:number;y:number;visible:boolean;kind?:stri
 export type GameEvent=
   |{type:"grab";playerId:string}
   |{type:"drop";playerId:string;x:number;y:number}
-  |{type:"deliver";playerId:string}
+  |{type:"deliver";playerId:string;points?:number}
   |{type:"respawn";anomalyId:string};
 export type FrameMonster={id:string;kind:"slime"|"hound";x:number;y:number;state:string;frozenUntil:number;aim:number;until:number};
 export type FrameView={
@@ -15,7 +15,7 @@ export type FrameView={
   time:number;dt:number;status:string;secondsLeft:number;input:{x:number;y:number};
   grabPending:boolean;players:FramePlayer[];anomalies:FrameAnomaly[];events:GameEvent[];reducedMotion:boolean;
 };
-export type RendererStats={calls:number;triangles:number;geometries:number;textures:number;pixelRatio:number;tier?:string};
+export type RendererStats={calls:number;triangles:number;geometries:number;textures:number;pixelRatio:number;tier?:string;bloomDisabled?:boolean};
 export interface ArenaRenderer{
   readonly kind:ViewKind;
   mount(stage:HTMLDivElement):void;
@@ -23,5 +23,6 @@ export interface ArenaRenderer{
   frame(view:FrameView):void;
   dispose():void;
   stats?():RendererStats;
+  setQuality?(quality:import("./quality").Quality):void;
   worldPoint?(x:number,y:number):{x:number;y:number}|null;
 }

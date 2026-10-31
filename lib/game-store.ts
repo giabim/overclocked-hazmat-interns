@@ -1,0 +1,4 @@
+import type {State} from "./game-types";
+export function createGameStore(){let state:State|null=null,received=0,rtt=0;const listeners=new Set<()=>void>();const emit=()=>{for(const l of listeners)l();};return{get:()=>state,set(next:State|null,at=0,latency=0){state=next;received=at;rtt=latency;emit();},subscribe(l:()=>void){listeners.add(l);return()=>{listeners.delete(l);};},tick:emit,serverTime:(at:number)=>state?state.serverNow+Math.max(0,at-received)+rtt/2:0,seconds(at:number){return state?.status==="running"?Math.max(0,Math.ceil((state.roundEndsAt-state.serverNow-Math.max(0,at-received)-rtt/2)/1000)):180;}};}
+export const gameStore=createGameStore();
+export function structureKey(s:State|null){return s?JSON.stringify([s.code,s.hostId,s.status,s.roundId,s.mode,s.mapId,s.chaos,s.players.map(p=>[p.id,p.name,p.color,p.isBot,p.level,p.connected,s.status==="results"?p.score:null])]):"";}

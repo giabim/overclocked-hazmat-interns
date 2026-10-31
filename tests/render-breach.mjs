@@ -1,8 +1,0 @@
-import assert from "node:assert/strict";
-import {moduleFor} from "./render-harness.mjs";
-const {drawBreach}=await moduleFor("render/breach-overlay"),{SnapshotBuffer}=await moduleFor("render/snapshots");
-let commands=0;const c=new Proxy({measureText:t=>({width:String(t).length*7})},{get(o,k){return k in o?o[k]:(...args)=>{assert.ok(args.every(a=>typeof a!=="number"||Number.isFinite(a)),`invalid drawing argument ${String(k)}`);commands++;};},set(o,k,v){o[k]=v;return true;}});
-const view={time:1000,worldNow:1000,mode:"breach",debug:true,flow:true,status:"running",players:Array.from({length:8},(_,i)=>({id:String(i),name:"Intern "+i,x:120+i*40,y:600,color:"#e8fa79",isSelf:!i,isBot:!!i,level:i%3+1,connected:true,carrying:i===2,lastFireAt:900,lastFireAim:0})),anomalies:[{id:"a",x:920,y:520,visible:true}],monsters:[{id:"m",kind:"hound",x:300,y:600,state:"WindUp",aim:0}],pickups:[{id:"p",x:800,y:600,readyAt:0}],grenades:[{id:"g",fromX:120,fromY:600,x:280,y:600,startedAt:800,explodeAt:1400}]};
-for(const [w,h] of [[960,600],[390,244],[1920,1200]])drawBreach(c,view,w,h);assert.ok(commands>1000);
-const track=new SnapshotBuffer();let now=0,previous=0;for(const gap of [100,400,500,800,100,100,100,500]){now+=gap;track.receive([{id:"m",x:now*.1,y:0,state:"Patrol"}],now,now,0);for(let frame=0;frame<gap;frame+=16){const p=track.positions(now+frame,Math.max(200,gap))[0];assert.ok(p.x>=previous-.0001);assert.ok(p.x<=now*.1+.0001);previous=p.x;}}const held=track.positions(now+100000,200)[0];assert.equal(held.x,now*.1);
-console.log("PASS: maze, minimap, flow field, eight players, wind-up, foam, grenades render with finite geometry at three sizes; specimen interpolation never rewinds or extrapolates across 100–800ms gaps");

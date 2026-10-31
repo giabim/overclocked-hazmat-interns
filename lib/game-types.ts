@@ -1,0 +1,4 @@
+import type {FrameView,FrameMonster} from "./render/types";
+export type Player = {posEpoch:number;stunUntil:number;immuneUntil:number;slowUntil:number;foamCharges:number;foamReadyAt:number;grenades:number;fireSeq:number;throwSeq:number;lastFireAt:number;lastFireAim:number;faceX:number;faceY:number;id:string;name:string;color:string;x:number;y:number;positionAt:number;vx:number;vy:number;seq:number;connected:boolean;isBot:boolean;level:number;score:number;carrying:boolean;interactSeq:number};
+export type Anomaly={id:string;x:number;y:number;carrierId:string|null;respawnAt:number;generation:number};
+export type State = {casLost?:boolean;syncSkipped?:boolean;mode:string;mapId:string;chaos:boolean;monsters:FrameMonster[];pickups:NonNullable<FrameView["pickups"]>;grenades:NonNullable<FrameView["grenades"]>;code:string;hostId:string;status:string;serverNow:number;players:Player[];anomalies:Anomaly[];roundEndsAt:number;roundId:number;revision:number};

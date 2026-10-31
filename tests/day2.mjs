@@ -23,6 +23,8 @@ try{
  execute("UPDATE players SET x=900,y=300,vx=0,vy=0 WHERE id=?",carrier.id);advanceTime(100);
  state=(await sync(carrier)).state;assert.equal(state.players.find(p=>p.id===carrier.id).score,1);const delivered=state.anomalies.find(x=>x.id===a.id);assert.equal(delivered.carrierId,null);assert.equal(delivered.respawnAt-state.serverNow,2000);
  const score=(await sync(carrier)).state.players.find(p=>p.id===carrier.id).score;assert.equal(score,1);
+ // Isolate the respawning item: another available canister may share its random spawn.
+ execute("UPDATE anomalies SET x=32,y=32 WHERE room_code=? AND id<>?",host.code,delivered.id);
  execute("UPDATE players SET x=?,y=?,vx=0,vy=0 WHERE id=?",delivered.x,delivered.y,carrier.id);
  state=(await sync(carrier,{interactSeq:++interaction})).state;assert.ok(!state.players.find(p=>p.id===carrier.id).carrying);
  advanceTime(2100);state=(await sync(carrier,{interactSeq:++interaction})).state;assert.ok(state.players.find(p=>p.id===carrier.id).carrying);

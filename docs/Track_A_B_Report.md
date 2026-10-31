@@ -1,3 +1,5 @@
+> Historical v3 report. The current 3D-only release is documented in [the v3.1 report](Overclocked_v3.1_Implementation_Report.md).
+
 # Track A + Track B implementation report
 
 Date: 2026-10-31

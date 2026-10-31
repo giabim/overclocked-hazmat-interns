@@ -9,7 +9,7 @@ export function diffSnapshots(previous:EventSnapshot|null,next:EventSnapshot):Ga
   const events:GameEvent[]=[];
   for(const p of next.players){
     const old=previous.players.find(a=>a.id===p.id);if(!old)continue;
-    if(p.score>old.score)events.push({type:"deliver",playerId:p.id});
+    if(p.score>old.score)events.push({type:"deliver",playerId:p.id,...(p.score-old.score>1?{points:p.score-old.score}:{})});
     else if(old.carrying&&!p.carrying)events.push({type:"drop",playerId:p.id,x:p.x,y:p.y});
     if(!old.carrying&&p.carrying)events.push({type:"grab",playerId:p.id});
   }

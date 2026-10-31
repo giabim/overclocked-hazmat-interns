@@ -1,13 +1,15 @@
 import { clamp, WORLD } from "./game";
 import { ROUND } from "./bot-settings";
 import {mapForId,moveCircle} from "./sim/map";
+import {DisplayDelay} from "./render/display-delay";
 import {BALANCE} from "./sim/balance";
 
 type Point = {x:number;y:number};
+const copyPoint=(p:Point,out?:Point)=>{if(out){out.x=p.x;out.y=p.y;return out;}return{x:p.x,y:p.y};};
 type Sample = Point & {serverNow:number};
 type SyncedPlayer = Point & {id:string;seq:number;positionAt:number;posEpoch?:number;stunUntil?:number;slowUntil?:number};
 type MovementState = {code:string;roundId:number;status:string;serverNow:number;mapId?:string;players:SyncedPlayer[]};
-type Track = {samples:Sample[];gaps:number[];cursor:number|null;delay:number};
+type Track = {samples:Sample[];cursor:number|null};
 
 export const RUNNING_POLL_MS=100;
 export const IDLE_POLL_MS=850;
@@ -24,7 +26,8 @@ export class MovementSync {
   private positionEpoch=0;private stunUntil=0;private slowUntil=0;
   corrections=0;
   get posEpoch(){return this.positionEpoch;}
-  get viewDelayMs(){return Math.max(200,...[...this.tracks.values()].map(t=>t.delay));}
+  private display=new DisplayDelay();
+  get viewDelayMs(){return this.display.value;}
   private epochAt=0;
   private running=false;
   private self:Point|null=null;
@@ -35,13 +38,14 @@ export class MovementSync {
   private clockOffset:number|null=null;
 
   reset(){
-    this.epoch="";this.positionEpoch=0;this.stunUntil=0;this.slowUntil=0;this.serverEstimate=0;this.map=mapForId();this.corrections=0;this.self=null;this.pending.clear();this.tracks.clear();
+    this.display.reset();this.epoch="";this.positionEpoch=0;this.stunUntil=0;this.slowUntil=0;this.serverEstimate=0;this.map=mapForId();this.corrections=0;this.self=null;this.pending.clear();this.tracks.clear();
     this.correction={x:0,y:0,remaining:0};this.acknowledged=-1;this.clockOffset=null;
   }
 
   receive(state:MovementState,selfId:string,receivedAt:number,rtt:number){
     const epoch=`${state.code}:${state.roundId}:${state.status}:${state.mapId||"classic"}`;
     if(epoch!==this.epoch){this.reset();this.epoch=epoch;this.epochAt=state.serverNow;}
+    this.display.observe(receivedAt);
     this.running=state.status==="running";this.map=mapForId(state.mapId);
     this.serverEstimate=Math.max(this.serverEstimate,state.serverNow+Math.max(0,rtt)/2);
     const offset=state.serverNow+Math.max(0,rtt)/2-receivedAt;
@@ -66,11 +70,10 @@ export class MovementSync {
         for(const seq of this.pending.keys())if(seq<=player.seq)this.pending.delete(seq);
         continue;
       }
-      const track=this.tracks.get(player.id)??{samples:[],gaps:[],cursor:null,delay:200};
+      const track=this.tracks.get(player.id)??{samples:[],cursor:null};
       const serverNow=Math.max(this.epochAt,player.positionAt);
       const last=track.samples.at(-1);
       if(!last||serverNow>last.serverNow){
-        if(last){track.gaps.push(serverNow-last.serverNow);if(track.gaps.length>4)track.gaps.shift();}
         track.samples.push({x:player.x,y:player.y,serverNow});
         if(track.samples.length>4){
           // A burst after a slow packet must not evict the pair currently being
@@ -78,10 +81,7 @@ export class MovementSync {
           if(track.cursor!==null&&track.samples[1].serverNow>track.cursor)track.samples.splice(2,1);
           else track.samples.shift();
         }
-        // Four distinct position samples survive faster observer polls. Grow the
-        // 200ms buffer when a sender/observer can only deliver slower snapshots.
-        const desired=Math.max(200,Math.min(1500,Math.max(0,...track.gaps)*1.25));
-        track.delay=desired>track.delay?desired:track.delay+(desired-track.delay)*.1;
+
       }
       this.tracks.set(player.id,track);
     }
@@ -95,7 +95,7 @@ export class MovementSync {
     return point;
   }
 
-  localPosition(input:Point,carrying:boolean,dt:number):Point|null{
+  localPosition(input:Point,carrying:boolean,dt:number,out?:Point):Point|null{
     if(!this.self)return null;this.serverEstimate+=dt*1000;
     if(this.running){
       const speed=WORLD.speed*(carrying?ROUND.carrySpeedRatio:1)*(this.stunUntil>this.serverEstimate?0:1)*(this.slowUntil>this.serverEstimate?BALANCE.slowRatio:1);
@@ -108,27 +108,27 @@ export class MovementSync {
       }
       this.self=moveCircle(this.map,this.self.x,this.self.y,x,y);
     }
-    return {...this.self};
+    if(out){out.x=this.self.x;out.y=this.self.y;return out;}return {...this.self};
   }
 
-  remotePosition(id:string,time:number,dt:number):Point|null{
+  remotePosition(id:string,time:number,dt:number,out?:Point):Point|null{
     const track=this.tracks.get(id);if(!track?.samples.length)return null;
     const samples=track.samples;
-    if(!this.running)return {...samples[samples.length-1]};
-    const target=Math.min(time+(this.clockOffset??0)-track.delay,samples[samples.length-1].serverNow);
+    if(!this.running)return copyPoint(samples[samples.length-1],out);
+    const target=Math.min(time+(this.clockOffset??0)-this.display.value,samples[samples.length-1].serverNow);
     // Monotonic playback prevents clock jitter/buffer changes from rewinding.
     // Catch up gradually instead of jumping when a later snapshot arrives.
     track.cursor=track.cursor===null?target:Math.max(track.cursor,Math.min(target,track.cursor+dt*1100));
     const at=track.cursor;
-    if(at<=samples[0].serverNow)return {...samples[0]};
+    if(at<=samples[0].serverNow)return copyPoint(samples[0],out);
     for(let i=1;i<samples.length;i++){
       const a=samples[i-1],b=samples[i];
       if(at<=b.serverNow){
         const t=(at-a.serverNow)/(b.serverNow-a.serverNow);
-        return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
+        if(out){out.x=a.x+(b.x-a.x)*t;out.y=a.y+(b.y-a.y)*t;return out;}return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
       }
     }
     // Missing snapshots hold the last confirmed position, never extrapolate.
-    return {...samples[samples.length-1]};
+    return copyPoint(samples[samples.length-1],out);
   }
 }

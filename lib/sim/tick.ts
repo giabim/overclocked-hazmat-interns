@@ -9,7 +9,7 @@ import {advanceWeapons,fireFoam,recharge,throwGrenade} from "./weapons";
 import type {Intent,PlayerRow,RoomRow,World,WorldState} from "./types";
 export function initialState(room:RoomRow,players:PlayerRow[],now:number):WorldState{
  const map=mapForId(room.map_id),count=room.mode==="breach"?Math.min(4,Math.max(1,Math.floor(players.length/2))):0;
- return{roundId:room.round_id,rng:room.rng||seedFor(room.code+room.round_id),monsters:Array.from({length:count},(_,i)=>{
+ return{playerHistory:{},roundId:room.round_id,rng:room.rng||seedFor(room.code+room.round_id),monsters:Array.from({length:count},(_,i)=>{
   const den=map.dens[i%map.dens.length];return{id:"specimen-"+i,kind:i%2?"hound" as const:"slime" as const,x:den.x,y:den.y,state:"Den",until:now+800,frozenUntil:0,targetId:null,chaseAt:0,aim:0,den:{...den},patrol:{...map.canisters[i%map.canisters.length]},hits:[],history:[{at:now,x:den.x,y:den.y}]};
  }),pickups:room.mode==="breach"?map.pickups.map((p,i)=>({id:"grenade-"+i,...p,readyAt:0})):[],grenades:[]};
 }
@@ -18,8 +18,9 @@ export function readWorld(room:RoomRow,players:PlayerRow[],anomalies:World["anom
  if(state.roundId!==room.round_id||!Array.isArray(state.monsters)||!Array.isArray(state.pickups)||!Array.isArray(state.grenades))state=initialState(room,players,now);
  return{...state,room,players,anomalies};
 }
-export function serializeWorld(world:World){const {roundId,rng,monsters,pickups,grenades}=world;return JSON.stringify({roundId,rng,monsters,pickups,grenades});}
+export function serializeWorld(world:World){const {roundId,rng,monsters,pickups,grenades,playerHistory}=world;return JSON.stringify({roundId,rng,monsters,pickups,grenades,playerHistory});}
 export function speedFor(p:PlayerRow,world:World,now:number){return WORLD.speed*(world.anomalies.some(a=>a.carrier_id===p.id)?ROUND.carrySpeedRatio:1)*(p.slow_until>now?B.slowRatio:1);}
+function recordPlayers(world:World){world.playerHistory??={};for(const p of world.players){const h=world.playerHistory[p.id]??=[];if(!h.length||p.last_at>h[h.length-1].at)h.push({at:p.last_at,x:p.x,y:p.y});else if(p.last_at===h[h.length-1].at){h[h.length-1].x=p.x;h[h.length-1].y=p.y;}while(h.length>B.historySamples)h.shift();}for(const id in world.playerHistory)if(!world.players.some(p=>p.id===id))delete world.playerHistory[id];}
 function carry(world:World){for(const a of world.anomalies){const p=world.players.find(p=>p.id===a.carrier_id);if(p){a.x=p.x;a.y=p.y;}else a.carrier_id=null;}}
 function deliver(world:World,now:number){
  const map=mapForId(world.room.map_id);
@@ -66,11 +67,11 @@ function botInteractions(world:World,now:number){
 }
 export function advance(world:World,now:number){
  const pending=world.players.filter(p=>!p.is_bot&&p.input_seq>p.seq).sort((a,b)=>a.input_at-b.input_at||a.id.localeCompare(b.id));
- for(const p of pending)applyInput(world,p,now);
+ for(const p of pending)applyInput(world,p,now);recordPlayers(world);
  if(world.room.status!=="running"){carry(world);return world;}
  const end=Math.min(now,world.room.round_ends_at);let at=Math.max(world.room.sim_at,end-B.maxCatchupMs);
  while(at<end){const step=Math.min(B.stepMs,end-at);at+=step;
-  advanceWeapons(world,at);botStep(world,at,step/1000);carry(world);botInteractions(world,at);
+  advanceWeapons(world,at);botStep(world,at,step/1000);recordPlayers(world);carry(world);botInteractions(world,at);
   if(world.room.mode==="breach")monsterStep(world,at,step/1000);
   carry(world);deliver(world,at);
  }
