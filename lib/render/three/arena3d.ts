@@ -1,114 +1,76 @@
-import {AdditiveBlending,BoxGeometry,CapsuleGeometry,CircleGeometry,Color,CylinderGeometry,DirectionalLight,Group,HemisphereLight,InstancedMesh,Matrix4,Mesh,MeshBasicMaterial,MeshToonMaterial,PerspectiveCamera,RingGeometry,Scene,SRGBColorSpace,Vector3,WebGLRenderer} from "three";
-import {toScene} from "../coords";
+import {AdditiveBlending,BoxGeometry,CapsuleGeometry,CircleGeometry,Color,CylinderGeometry,DirectionalLight,Group,HemisphereLight,InstancedMesh,Matrix4,Mesh,MeshBasicMaterial,MeshPhysicalMaterial,MeshStandardMaterial,NeutralToneMapping,PCFSoftShadowMap,PerspectiveCamera,Plane,Raycaster,PMREMGenerator,RingGeometry,Scene,SphereGeometry,SRGBColorSpace,Vector2,Vector3,WebGLRenderer} from "three";
+import {RoomEnvironment} from "three/addons/environments/RoomEnvironment.js";
+import {EffectComposer} from "three/addons/postprocessing/EffectComposer.js";
+import {RenderPass} from "three/addons/postprocessing/RenderPass.js";
+import {UnrealBloomPass} from "three/addons/postprocessing/UnrealBloomPass.js";
+import {OutputPass} from "three/addons/postprocessing/OutputPass.js";
+import {toScene,toWorld} from "../coords";
 import {addLabel,drawLabels,type Label} from "../labels";
+import {drawGuide,drawMinimap} from "../breach-overlay";
 import type {ArenaRenderer,FramePlayer,FrameView} from "../types";
 import {fitCamera} from "./camera";
 import {createLab} from "./lab";
 import {Resources} from "./resources";
-
-type Intern={root:Group;body:Mesh;visor:Mesh;antenna:Mesh;held:Group;material:MeshToonMaterial;visorMaterial:MeshBasicMaterial};
+type Tier="high"|"medium"|"low";
+type Intern={root:Group;held:Group;material:MeshStandardMaterial;visor:MeshPhysicalMaterial;lastX:number;lastY:number};
 export class ThreeRenderer implements ArenaRenderer{
-  readonly kind="3d" as const;
-  private renderer:WebGLRenderer|null=null;
-  private canvas:HTMLCanvasElement|null=null;
-  private overlay:HTMLCanvasElement|null=null;
-  private context:CanvasRenderingContext2D|null=null;
-  private scene=new Scene();
-  private camera=new PerspectiveCamera(30,1,.5,300);
-  private resources=new Resources();
-  private interns=new Map<string,Intern>();
-  private canisters=new Map<string,Group>();
-  private shadows:InstancedMesh|null=null;
-  private ring:Mesh|null=null;
-  private width=1;private height=1;private ratio=1;private lastDraw=-Infinity;
-  private point=new Vector3();private matrix=new Matrix4();
-  private capsule=this.resources.own(new CapsuleGeometry(.45,.45,4,12));
-  private visorGeo=this.resources.own(new BoxGeometry(.5,.17,.16));
-  private antennaGeo=this.resources.own(new BoxGeometry(.09,.25,.09));
-  private bodyGeo=this.resources.own(new CylinderGeometry(.28,.28,.75,12));
-  private capGeo=this.resources.own(new CylinderGeometry(.23,.23,.1,12));
-  private glowGeo=this.resources.own(new CylinderGeometry(.38,.38,.85,12));
-  private canisterMaterial=this.resources.own(new MeshToonMaterial({color:"#9aeddf",emissive:"#296a60",emissiveIntensity:.6}));
-  private capMaterial=this.resources.own(new MeshToonMaterial({color:"#385c53"}));
-  private glowMaterial=this.resources.own(new MeshBasicMaterial({color:"#9aeddf",transparent:true,opacity:.15,blending:AdditiveBlending,depthWrite:false}));
-  private contextLost=(event:Event)=>{event.preventDefault();this.onFailure("The 3D graphics connection was lost. Classic 2D is ready.");};
-
-  constructor(private onFailure:(message:string)=>void){}
-  mount(stage:HTMLDivElement){
-    this.canvas=document.createElement("canvas");this.canvas.dataset.renderer="3d";this.canvas.setAttribute("aria-hidden","true");
-    const antialias=(window.devicePixelRatio||1)<2;
-    const context=this.canvas.getContext("webgl2",{antialias,powerPreference:"high-performance"});
-    if(!context)throw new Error("WebGL 2 is unavailable.");
-    this.renderer=new WebGLRenderer({canvas:this.canvas,context,antialias,powerPreference:"high-performance"});
-    this.renderer.outputColorSpace=SRGBColorSpace;
-    this.ratio=Math.min(window.devicePixelRatio||1,matchMedia("(pointer: coarse)").matches?1.5:2);this.renderer.setPixelRatio(this.ratio);
-    this.scene.background=new Color("#10170f");this.scene.add(new HemisphereLight("#dfe9d0","#1a211d",.9));
-    const key=new DirectionalLight("#fff3d1",1.2);key.position.set(-6,12,8);this.scene.add(key,this.camera,createLab(this.resources));
-    const shadowGeo=this.resources.own(new CircleGeometry(1,20));shadowGeo.rotateX(-Math.PI/2);
-    this.shadows=new InstancedMesh(shadowGeo,this.resources.own(new MeshBasicMaterial({color:"#020906",transparent:true,opacity:.45,depthWrite:false})),11);
-    this.shadows.frustumCulled=false;this.shadows.count=0;this.scene.add(this.shadows);
-    const ringGeo=this.resources.own(new RingGeometry(.62,.72,32));ringGeo.rotateX(-Math.PI/2);
-    this.ring=new Mesh(ringGeo,this.resources.own(new MeshBasicMaterial({color:"#e8fa79",transparent:true,opacity:.65,depthWrite:false})));this.ring.visible=false;this.scene.add(this.ring);
-    this.overlay=document.createElement("canvas");this.overlay.className="arena-labels";this.overlay.setAttribute("aria-hidden","true");this.context=this.overlay.getContext("2d");
-    if(!this.context)throw new Error("The name labels could not load.");
-    this.canvas.addEventListener("webglcontextlost",this.contextLost);
-    stage.appendChild(this.canvas);stage.appendChild(this.overlay);
-  }
-  resize(width:number,height:number){
-    width=Math.max(1,width);height=Math.max(1,height);
-    if(!this.renderer||!this.overlay)return;
-    if(width===this.width&&height===this.height)return;
-    this.width=width;this.height=height;this.renderer.setSize(width,height,false);
-    this.overlay.width=Math.round(width*this.ratio);this.overlay.height=Math.round(height*this.ratio);
-    fitCamera(this.camera,width/height);this.lastDraw=-Infinity;
-  }
-  private makeCanister(){
-    const group=new Group(),body=new Mesh(this.bodyGeo,this.canisterMaterial),cap=new Mesh(this.capGeo,this.capMaterial),glow=new Mesh(this.glowGeo,this.glowMaterial);
-    body.position.y=.4;cap.position.y=.82;glow.position.y=.4;group.add(body,cap,glow);return group;
-  }
-  private makeIntern(p:FramePlayer){
-    const root=new Group(),material=this.resources.own(new MeshToonMaterial({color:p.color})),visorMaterial=this.resources.own(new MeshBasicMaterial({color:"#1b302a"}));
-    const body=new Mesh(this.capsule,material);body.position.y=.675;
-    const visor=new Mesh(this.visorGeo,visorMaterial);visor.position.set(0,1,.41);
-    const antenna=new Mesh(this.antennaGeo,material);antenna.position.y=1.48;antenna.visible=p.isBot;
-    const held=this.makeCanister();held.position.y=1.4;root.add(body,visor,antenna,held);this.scene.add(root);
-    const intern={root,body,visor,antenna,held,material,visorMaterial};this.interns.set(p.id,intern);return intern;
-  }
-  frame(view:FrameView){
-    if(!this.renderer||!this.context||!this.overlay||!this.shadows||!this.ring)return;
-    if(this.renderer.getContext().isContextLost())throw new Error("The WebGL context was lost.");
-    if(view.status!=="running"&&view.time-this.lastDraw<1000/30)return;
-    this.lastDraw=view.time;
-    const c=this.context;c.setTransform(this.ratio,0,0,this.ratio,0,0);c.clearRect(0,0,this.width,this.height);
-    const active=new Set(view.players.map(p=>p.id));
-    for(const [id,intern] of this.interns)if(!active.has(id)){this.scene.remove(intern.root);this.resources.release(intern.material);this.resources.release(intern.visorMaterial);this.interns.delete(id);}
-    const labels:Label[]=[];let shadowCount=0;this.ring.visible=false;
-    const shadow=(x:number,z:number,size:number)=>{this.matrix.makeScale(size,1,size);this.matrix.setPosition(x,.025,z);this.shadows!.setMatrixAt(shadowCount++,this.matrix);};
-    for(const p of view.players){
-      const intern=this.interns.get(p.id)??this.makeIntern(p),position=toScene(p.x,p.y);
-      intern.root.position.set(position.x,0,position.z);intern.held.visible=p.carrying;
-      for(const material of [intern.material,intern.visorMaterial]){
-        const transparent=!p.connected;if(material.transparent!==transparent){material.transparent=transparent;material.needsUpdate=true;}material.opacity=p.connected?1:.45;
-      }
-      shadow(position.x,position.z,.6);
-      if(p.isSelf){this.ring.position.set(position.x,.03,position.z);this.ring.visible=true;}
-      this.point.set(position.x,1.6,position.z).project(this.camera);
-      const x=(this.point.x+1)*this.width/2,y=(1-this.point.y)*this.height/2;
-      addLabel(c,labels,(p.isBot?`${p.name} · BOT Lv${p.level}`:p.name)+(p.isSelf?" · YOU":""),x,y+21,p.isSelf?p.color:"#eef2e5",this.width,this.height);
-    }
-    const anomalies=new Set(view.anomalies.map(a=>a.id));
-    for(const [id,mesh] of this.canisters)if(!anomalies.has(id)){this.scene.remove(mesh);this.canisters.delete(id);}
-    for(const a of view.anomalies){
-      let mesh=this.canisters.get(a.id);if(!mesh){mesh=this.makeCanister();this.canisters.set(a.id,mesh);this.scene.add(mesh);}
-      mesh.visible=a.visible;if(!a.visible)continue;const position=toScene(a.x,a.y);mesh.position.set(position.x,0,position.z);shadow(position.x,position.z,.38);
-    }
-    this.shadows.count=shadowCount;this.shadows.instanceMatrix.needsUpdate=true;
-    this.renderer.render(this.scene,this.camera);drawLabels(c,labels);
-  }
-  stats(){const r=this.renderer;return {calls:r?.info.render.calls??0,triangles:r?.info.render.triangles??0,geometries:r?.info.memory.geometries??0,textures:r?.info.memory.textures??0,pixelRatio:this.ratio};}
-  dispose(){
-    this.canvas?.removeEventListener("webglcontextlost",this.contextLost);
-    this.shadows?.dispose();this.resources.dispose();this.renderer?.dispose();this.renderer?.forceContextLoss();
-    this.canvas?.remove();this.overlay?.remove();this.scene.clear();this.interns.clear();this.canisters.clear();this.renderer=null;this.context=null;this.canvas=null;this.overlay=null;this.shadows=null;this.ring=null;
-  }
+ readonly kind="3d" as const;
+ private renderer:WebGLRenderer|null=null;private canvas:HTMLCanvasElement|null=null;private overlay:HTMLCanvasElement|null=null;private context:CanvasRenderingContext2D|null=null;
+ private scene=new Scene();private camera=new PerspectiveCamera(30,1,.5,300);private resources=new Resources();private interns=new Map<string,Intern>();private canisters=new Map<string,Group>();private specimens=new Map<string,Group>();private projectiles=new Map<string,Mesh>();private pickups=new Map<string,Mesh>();
+ private labResources:Resources|null=null;private lab:ReturnType<typeof createLab>|null=null;private canisterBody:InstancedMesh|null=null;private canisterCaps:InstancedMesh|null=null;private canisterShells:InstancedMesh|null=null;private mapId="";private tier:Tier="medium";private key:DirectionalLight|null=null;private composer:EffectComposer|null=null;private passes:{dispose():void}[]=[];private shadows:InstancedMesh|null=null;private ring:Mesh|null=null;private foam:InstancedMesh|null=null;private width=1;private height=1;private ratio=1;private lastDraw=-Infinity;private slowAt=0;private average=16;private cameraTarget=new Vector3();private cameraSet=false;
+ private point=new Vector3();private matrix=new Matrix4();private target=new Vector3();
+ private capsule=this.resources.own(new CapsuleGeometry(.4,.45,4,12));private sphere=this.resources.own(new SphereGeometry(.43,16,10));private visorGeo=this.resources.own(new SphereGeometry(.34,16,10,0,Math.PI));private antennaGeo=this.resources.own(new BoxGeometry(.08,.25,.08));private bodyGeo=this.resources.own(new CylinderGeometry(.23,.23,.7,12));private capGeo=this.resources.own(new CylinderGeometry(.26,.26,.09,12));private glowGeo=this.resources.own(new CylinderGeometry(.3,.3,.74,12));
+ private liquid=this.resources.own(new MeshStandardMaterial({color:"#a0fbe8",emissive:"#96ffdf",emissiveIntensity:3,roughness:.15,metalness:.12}));private metal=this.resources.own(new MeshStandardMaterial({color:"#728887",roughness:.3,metalness:.85}));private glow=this.resources.own(new MeshPhysicalMaterial({color:"#c9fff1",transparent:true,opacity:.18,roughness:.05,metalness:.08,depthWrite:false}));private warningGeo=this.resources.own(new BoxGeometry(1.15,3.8,.003));private slime=this.resources.own(new MeshStandardMaterial({color:"#9cbd6d",roughness:.2,metalness:.05}));private hound=this.resources.own(new MeshStandardMaterial({color:"#dfa16c",roughness:.45,metalness:.2}));private frozen=this.resources.own(new MeshStandardMaterial({color:"#9adfff",roughness:.15,metalness:.3}));private black=this.resources.own(new MeshStandardMaterial({color:"#112c30",roughness:.1}));private ice=this.resources.own(new MeshStandardMaterial({color:"#b8e9ff",emissive:"#4488aa",emissiveIntensity:.6,roughness:.15,metalness:.3}));private warn=this.resources.own(new MeshBasicMaterial({color:"#ff686d",transparent:true,opacity:.4,depthWrite:false}));
+ private contextLost=(e:Event)=>{e.preventDefault();this.onFailure("The 3D graphics connection was lost. 2D is ready.");};
+ constructor(private onFailure:(message:string)=>void){}
+ mount(stage:HTMLDivElement){
+  this.canvas=document.createElement("canvas");this.canvas.dataset.renderer="3d";this.canvas.setAttribute("aria-hidden","true");const antialias=(devicePixelRatio||1)<2,context=this.canvas.getContext("webgl2",{antialias,powerPreference:"high-performance"});if(!context)throw Error("WebGL 2 unavailable");
+  this.renderer=new WebGLRenderer({canvas:this.canvas,context,antialias,powerPreference:"high-performance"});this.renderer.info.autoReset=false;this.renderer.outputColorSpace=SRGBColorSpace;this.renderer.toneMapping=NeutralToneMapping;this.renderer.toneMappingExposure=1.1;this.renderer.shadowMap.type=PCFSoftShadowMap;
+  this.scene.background=new Color("#101c23");this.scene.environmentIntensity=.7;
+  const environment=new RoomEnvironment(),pmrem=new PMREMGenerator(this.renderer),env=pmrem.fromScene(environment,.04);this.resources.own(env);this.scene.environment=env.texture;environment.dispose();pmrem.dispose();
+  this.scene.add(new HemisphereLight("#e5f3e9","#172526",.35));this.key=new DirectionalLight("#fff3dd",1.6);this.key.position.set(-6,18,10);this.key.shadow.mapSize.set(2048,2048);Object.assign(this.key.shadow.camera,{left:-27,right:27,top:24,bottom:-24,near:.5,far:85});this.key.shadow.bias=-.0003;this.key.shadow.normalBias=.04;this.scene.add(this.key,this.key.target,this.camera);
+  const shadowGeo=this.resources.own(new CircleGeometry(1,20));shadowGeo.rotateX(-Math.PI/2);this.shadows=new InstancedMesh(shadowGeo,this.resources.own(new MeshBasicMaterial({color:"#020906",transparent:true,opacity:.4,depthWrite:false})),40);this.shadows.frustumCulled=false;this.scene.add(this.shadows);
+  const ringGeo=this.resources.own(new RingGeometry(.62,.69,32));ringGeo.rotateX(-Math.PI/2);this.ring=new Mesh(ringGeo,this.resources.own(new MeshBasicMaterial({color:"#e8fa79",transparent:true,opacity:.8,depthWrite:false})));this.scene.add(this.ring);
+  const foamGeo=this.resources.own(new CircleGeometry(3.5,18,-.61,1.22));foamGeo.rotateX(-Math.PI/2);foamGeo.rotateY(Math.PI/2);this.foam=new InstancedMesh(foamGeo,this.resources.own(new MeshBasicMaterial({color:"#b8eeff",transparent:true,opacity:.35,depthWrite:false})),8);this.foam.frustumCulled=false;this.scene.add(this.foam);
+  this.canisterBody=new InstancedMesh(this.bodyGeo,this.liquid,16);this.canisterCaps=new InstancedMesh(this.capGeo,this.metal,32);this.canisterShells=new InstancedMesh(this.glowGeo,this.glow,16);for(const mesh of [this.canisterBody,this.canisterCaps,this.canisterShells]){mesh.count=0;mesh.frustumCulled=false;this.scene.add(mesh);}this.canisterBody.castShadow=this.canisterCaps.castShadow=true;
+  const query=new URLSearchParams(location.search),requested=query.get("photo")==="1"?"high":query.get("quality");this.setTier(requested==="high"||requested==="medium"||requested==="low"?requested:matchMedia("(pointer: coarse)").matches?"medium":"high");
+  this.overlay=document.createElement("canvas");this.overlay.className="arena-labels";this.overlay.setAttribute("aria-hidden","true");this.context=this.overlay.getContext("2d");if(!this.context)throw Error("Labels could not load");this.canvas.addEventListener("webglcontextlost",this.contextLost);stage.appendChild(this.canvas);stage.appendChild(this.overlay);
+ }
+ private setTier(tier:Tier){
+  if(!this.renderer)return;this.tier=tier;this.ratio=Math.min(devicePixelRatio||1,tier==="high"?2:tier==="medium"?1.5:1);this.renderer.setPixelRatio(this.ratio);this.renderer.shadowMap.enabled=tier==="high";if(this.key)this.key.castShadow=tier==="high";
+  for(const pass of this.passes)pass.dispose();this.passes=[];this.composer?.dispose();this.composer=null;
+  if(tier==="high"){this.composer=new EffectComposer(this.renderer);const render=new RenderPass(this.scene,this.camera),bloom=new UnrealBloomPass(new Vector2(this.width,this.height),.35,.25,2),output=new OutputPass();this.passes=[render,bloom,output];for(const pass of [render,bloom,output])this.composer.addPass(pass);this.composer.setSize(this.width,this.height);}
+  if(this.lab){this.lab.floorMat.bumpMap=tier==="low"?null:this.lab.bump;this.lab.floorMat.needsUpdate=true;}for(const i of this.interns.values()){i.visor.clearcoat=tier==="high"?1:0;i.visor.needsUpdate=true;}
+  this.resize(this.width,this.height,true);
+ }
+ resize(w:number,h:number,force=false){if(!this.renderer)return;w=Math.max(1,w);h=Math.max(1,h);if(!force&&w===this.width&&h===this.height)return;this.width=w;this.height=h;this.renderer.setSize(w,h,false);this.composer?.setSize(w,h);if(this.overlay){this.overlay.width=Math.round(w*this.ratio);this.overlay.height=Math.round(h*this.ratio);}this.camera.aspect=w/h;fitCamera(this.camera,w/h);this.cameraSet=false;this.lastDraw=-Infinity;}
+ private canister(){const g=new Group();for(const [geo,mat,y] of [[this.bodyGeo,this.liquid,.42],[this.capGeo,this.metal,.82],[this.capGeo,this.metal,.06],[this.glowGeo,this.glow,.42]] as const){const mesh=new Mesh(geo,mat);mesh.position.y=y;mesh.castShadow=true;g.add(mesh);}return g;}
+ private intern(p:FramePlayer){const root=new Group(),material=this.resources.own(new MeshStandardMaterial({color:p.color,roughness:.65,metalness:.04})),visor=this.resources.own(new MeshPhysicalMaterial({color:"#203d49",roughness:.08,metalness:.6,clearcoat:this.tier==="high"?1:0,clearcoatRoughness:.08}));const body=new Mesh(this.capsule,material);body.position.y=.65;const head=new Mesh(this.sphere,material);head.position.y=1.16;const glass=new Mesh(this.visorGeo,visor);glass.position.set(0,1.2,.18);const held=new Group();held.position.set(.45,.8,.3);const antenna=new Mesh(this.antennaGeo,this.metal);antenna.position.y=1.7;antenna.visible=p.isBot;root.add(body,head,glass,held,antenna);body.castShadow=true;root.traverse(o=>{if(o instanceof Mesh)o.receiveShadow=true;});this.scene.add(root);const intern={root,held,material,visor,lastX:p.x,lastY:p.y};this.interns.set(p.id,intern);return intern;}
+ private specimen(kind:string){const root=new Group(),body=new Mesh(this.sphere,kind==="slime"?this.slime:this.hound);body.scale.set(kind==="slime"?1.4:1.8,kind==="slime"?1.1:.7,1.15);body.position.y=.5;body.castShadow=true;root.add(body);for(const x of [-.18,.18]){const eye=new Mesh(this.sphere,this.black);eye.scale.setScalar(.17);eye.position.set(x,.63,.43);root.add(eye);}const warning=new Mesh(this.warningGeo,this.warn);warning.rotation.x=-Math.PI/2;warning.position.set(0,.035,1.9);root.add(warning);return root;}
+ frame(view:FrameView){
+  if(!this.renderer||!this.context||!this.overlay||!this.shadows||!this.ring||!this.foam)return;if(this.renderer.getContext().isContextLost())throw Error("WebGL lost");
+  const elapsed=view.time-this.lastDraw;if(Number.isFinite(elapsed)&&elapsed>0){this.average=this.average*.97+elapsed*.03;if(this.average>22&&!document.hidden&&view.status==="running"){this.slowAt||=view.time;if(view.time-this.slowAt>3000&&this.tier!=="low"&&!view.photo){this.setTier(this.tier==="high"?"medium":"low");this.slowAt=0;}}else this.slowAt=0;}
+  if(view.status!=="running"&&elapsed<1000/30)return;this.lastDraw=view.time;
+  const breach=view.mode==="breach",mapId=breach?"lab-a":"classic";if(this.mapId!==mapId){if(this.lab){this.scene.remove(this.lab.group);this.lab.dispose();this.labResources?.dispose();}this.labResources=new Resources();this.lab=createLab(this.labResources,breach);this.scene.add(this.lab.group);this.mapId=mapId;this.cameraTarget.set(0,0,0);this.cameraSet=false;if(this.tier==="low")this.lab.floorMat.bumpMap=null;}
+  const self=view.players.find(p=>p.isSelf),now=view.worldNow??0;
+  if(breach&&self){const p=toScene(Math.max(480,Math.min(1440,self.x)),Math.max(300,Math.min(900,self.y)));this.target.set(p.x,0,p.z);if(!this.cameraSet)this.cameraTarget.copy(this.target);else this.cameraTarget.lerp(this.target,view.reducedMotion?1:1-Math.exp(-view.dt*10));this.cameraSet=true;this.camera.position.copy(this.cameraTarget).add(new Vector3(0,29,17));this.camera.lookAt(this.cameraTarget);this.camera.aspect=this.width/this.height;this.camera.updateProjectionMatrix();const q=toScene(self.x,self.y);this.lab?.updateWalls(q.x,q.z);}else if(!breach){fitCamera(this.camera,this.width/this.height);}
+  if(this.key){this.key.position.set(this.cameraTarget.x-6,22,this.cameraTarget.z+10);this.key.target.position.set(this.cameraTarget.x,0,this.cameraTarget.z);}
+  const c=this.context;c.setTransform(this.ratio,0,0,this.ratio,0,0);c.clearRect(0,0,this.width,this.height);const labels:Label[]=[];let shadows=0,foams=0,canisterCount=0;
+  const canister=(x:number,y:number,z:number)=>{const i=canisterCount++;this.matrix.makeTranslation(x,y+.42,z);this.canisterBody!.setMatrixAt(i,this.matrix);this.canisterShells!.setMatrixAt(i,this.matrix);this.matrix.makeTranslation(x,y+.82,z);this.canisterCaps!.setMatrixAt(i*2,this.matrix);this.matrix.makeTranslation(x,y+.06,z);this.canisterCaps!.setMatrixAt(i*2+1,this.matrix);};
+  const shadow=(x:number,z:number,s:number)=>{this.matrix.makeScale(s,1,s);this.matrix.setPosition(x,.025,z);this.shadows!.setMatrixAt(shadows++,this.matrix);};
+  const active=new Set(view.players.map(p=>p.id));for(const [id,i] of this.interns)if(!active.has(id)){this.scene.remove(i.root);this.resources.release(i.material);this.resources.release(i.visor);this.interns.delete(id);}this.ring.visible=false;
+  for(const p of view.players){const i=this.interns.get(p.id)??this.intern(p),q=toScene(p.x,p.y),moving=Math.hypot(p.x-i.lastX,p.y-i.lastY)>.05;i.root.position.set(q.x,0,q.z);i.held.visible=p.carrying;if(p.carrying)canister(q.x+.45,.8,q.z+.3);i.root.rotation.z=(!view.reducedMotion&&moving)?Math.sin(view.time*.014)*.04:0;const dx=p.x-i.lastX,dy=p.y-i.lastY;if(moving)i.root.rotation.y=Math.atan2(dx,dy);i.lastX=p.x;i.lastY=p.y;i.material.color.set(p.stunUntil&&p.stunUntil>now?"#fff":p.color);i.material.opacity=p.connected?1:.4;i.material.transparent=!p.connected;shadow(q.x,q.z,.62);if(p.isSelf){this.ring.position.set(q.x,.03,q.z);this.ring.visible=true;}if(!view.photo){this.point.set(q.x,1.9,q.z).project(this.camera);if(this.point.z<1)addLabel(c,labels,p.name+(p.isBot?` · Lv${p.level}`:p.isSelf?" · YOU":""),(this.point.x+1)*this.width/2,(1-this.point.y)*this.height/2,p.isSelf?p.color:"#eef2e5",this.width,this.height);}if(now-(p.lastFireAt??0)<220&&now>=(p.lastFireAt??0)){this.matrix.makeRotationY(-(p.lastFireAim??0));this.matrix.setPosition(q.x,.09,q.z);this.foam.setMatrixAt(foams++,this.matrix);}}
+  for(const a of view.anomalies)if(a.visible){const q=toScene(a.x,a.y);canister(q.x,view.reducedMotion?0:Math.sin(view.time*.002+a.x)*.03,q.z);shadow(q.x,q.z,.4);}
+  this.canisterBody!.count=this.canisterShells!.count=canisterCount;this.canisterCaps!.count=canisterCount*2;for(const mesh of [this.canisterBody,this.canisterCaps,this.canisterShells])mesh!.instanceMatrix.needsUpdate=true;
+  const monsterIds=new Set((view.monsters??[]).map(m=>m.id));for(const [id,g] of this.specimens)if(!monsterIds.has(id)){this.scene.remove(g);this.specimens.delete(id);}
+  for(const m of view.monsters??[]){let g=this.specimens.get(m.id);if(!g){g=this.specimen(m.kind);this.specimens.set(m.id,g);this.scene.add(g);}g.visible=m.state!=="Contained";const q=toScene(m.x,m.y);g.position.set(q.x,0,q.z);g.rotation.y=Math.PI/2-m.aim;(g.children[0] as Mesh).material=m.state==="Frozen"?this.frozen:m.kind==="slime"?this.slime:this.hound;g.children[3].visible=m.state==="WindUp"||m.state==="Dash";if(g.visible)shadow(q.x,q.z,.65);if(view.debug&&g.visible){this.point.set(q.x,1.3,q.z).project(this.camera);addLabel(c,labels,m.state,(this.point.x+1)*this.width/2,(1-this.point.y)*this.height/2,"#ffc8c5",this.width,this.height);}}
+  for(const p of view.pickups??[]){let mesh=this.pickups.get(p.id);if(!mesh){mesh=new Mesh(this.sphere,this.ice);mesh.scale.setScalar(.36);this.pickups.set(p.id,mesh);this.scene.add(mesh);}const q=toScene(p.x,p.y);mesh.position.set(q.x,.4,q.z);mesh.visible=p.readyAt<=now;}
+  const grenadeIds=new Set((view.grenades??[]).map(g=>g.id));for(const [id,mesh] of this.projectiles)if(!grenadeIds.has(id)){this.scene.remove(mesh);this.projectiles.delete(id);}for(const g of view.grenades??[]){let mesh=this.projectiles.get(g.id);if(!mesh){mesh=new Mesh(this.sphere,this.ice);mesh.scale.setScalar(.27);this.projectiles.set(g.id,mesh);this.scene.add(mesh);}const f=Math.max(0,Math.min(1,(now-g.startedAt)/(g.explodeAt-g.startedAt))),p=toScene(g.fromX+(g.x-g.fromX)*f,g.fromY+(g.y-g.fromY)*f);mesh.position.set(p.x,.35+Math.sin(f*Math.PI)*1.4,p.z);}
+  if(!breach)for(const mesh of this.pickups.values())mesh.visible=false;
+  this.shadows.count=shadows;this.shadows.instanceMatrix.needsUpdate=true;this.foam.count=foams;this.foam.instanceMatrix.needsUpdate=true;
+  this.renderer.info.reset();if(this.composer)this.composer.render();else this.renderer.render(this.scene,this.camera);drawLabels(c,labels);if(breach){drawMinimap(c,view,this.width,this.height);drawGuide(c,view,this.width,this.height);}
+ }
+ worldPoint(x:number,y:number){const ray=new Raycaster();ray.setFromCamera(new Vector2(x*2-1,1-y*2),this.camera);const hit=ray.ray.intersectPlane(new Plane(new Vector3(0,1,0),0),new Vector3());return hit?toWorld(hit.x,hit.z):null;}
+ stats(){const r=this.renderer;return{calls:r?.info.render.calls??0,triangles:r?.info.render.triangles??0,geometries:r?.info.memory.geometries??0,textures:r?.info.memory.textures??0,pixelRatio:this.ratio,tier:this.tier};}
+ dispose(){this.canvas?.removeEventListener("webglcontextlost",this.contextLost);for(const p of this.passes)p.dispose();this.composer?.dispose();this.lab?.dispose();this.labResources?.dispose();this.key?.shadow.dispose();this.canisterBody?.dispose();this.canisterCaps?.dispose();this.canisterShells?.dispose();this.shadows?.dispose();this.foam?.dispose();this.resources.dispose();this.renderer?.dispose();this.renderer?.forceContextLoss();this.canvas?.remove();this.overlay?.remove();this.scene.clear();this.interns.clear();this.canisters.clear();this.specimens.clear();this.projectiles.clear();this.pickups.clear();this.renderer=null;this.context=null;}
 }

@@ -1,3 +1,4 @@
+import {drawBreach} from "./breach-overlay";
 import {WORLD} from "../game";
 import {addLabel,drawLabels,type Label} from "./labels";
 import type {ArenaRenderer,FrameView} from "./types";
@@ -16,6 +17,7 @@ export class Canvas2DRenderer implements ArenaRenderer{
   }
   frame(view:FrameView){
     const c=this.context,element=this.canvas;if(!c||!element)return;
+    if(view.mode==="breach"){drawBreach(c,view,element.width,element.height);return;}
     c.setTransform(element.width/WORLD.width,0,0,element.height/WORLD.height,0,0);
       c.fillStyle="#1a211d";c.fillRect(0,0,960,600);
       c.strokeStyle="#29332b";c.lineWidth=1;

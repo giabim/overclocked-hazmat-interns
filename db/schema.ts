@@ -12,6 +12,11 @@ export const rooms = sqliteTable("rooms", {
   simMs: integer("sim_ms").notNull().default(0),
   simOwner: text("sim_owner").notNull().default(""),
   revision: integer("revision").notNull().default(0),
+  mode: text("mode").notNull().default("classic"),
+  mapId: text("map_id").notNull().default("classic"),
+  world: text("world").notNull().default("{}"),
+  rng: integer("rng").notNull().default(1),
+  chaos: integer("chaos").notNull().default(0),
 });
 
 export const players = sqliteTable("players", {
@@ -37,6 +42,27 @@ export const players = sqliteTable("players", {
   dropAt: integer("drop_at").notNull().default(0),
   interactSeq: integer("interact_seq").notNull().default(0),
   actionKind: integer("action_kind").notNull().default(0),
+  inputJson: text("input_json").notNull().default("{}"),
+  inputSeq: integer("input_seq").notNull().default(0),
+  inputAt: integer("input_at").notNull().default(0),
+  posEpoch: integer("pos_epoch").notNull().default(0),
+  stunUntil: integer("stun_until").notNull().default(0),
+  immuneUntil: integer("immune_until").notNull().default(0),
+  slowUntil: integer("slow_until").notNull().default(0),
+  foamCharges: integer("foam_charges").notNull().default(5),
+  foamReadyAt: integer("foam_ready_at").notNull().default(0),
+  chargeAt: integer("charge_at").notNull().default(0),
+  grenades: integer("grenades").notNull().default(0),
+  fireSeq: integer("fire_seq").notNull().default(0),
+  throwSeq: integer("throw_seq").notNull().default(0),
+  lastFireAt: integer("last_fire_at").notNull().default(0),
+  lastFireAim: real("last_fire_aim").notNull().default(0),
+  faceX: real("face_x").notNull().default(0),
+  faceY: real("face_y").notNull().default(-1),
+  stuckAt: integer("stuck_at").notNull().default(0),
+  stuckX: real("stuck_x").notNull().default(0),
+  stuckY: real("stuck_y").notNull().default(0),
+
 }, (table) => [index("players_room_idx").on(table.roomCode)]);
 
 export const anomalies = sqliteTable("anomalies", {

@@ -1,0 +1,8 @@
+type Entry<T>={samples:{at:number;value:T}[];cursor:number|null;last:number};
+// Four confirmed snapshots, monotonic playback, and a hold at the newest sample.
+export class SnapshotBuffer<T extends {id:string;x:number;y:number}>{
+ private tracks=new Map<string,Entry<T>>();private offset:number|null=null;
+ receive(values:T[],serverNow:number,localNow:number,rtt:number){const offset=serverNow-localNow+rtt/2;this.offset=this.offset===null?offset:this.offset+(offset-this.offset)*.1;const ids=new Set(values.map(v=>v.id));for(const id of this.tracks.keys())if(!ids.has(id))this.tracks.delete(id);for(const value of values){const track=this.tracks.get(value.id)??{samples:[],cursor:null,last:localNow};if((track.samples.at(-1)?.at??-Infinity)<serverNow)track.samples.push({at:serverNow,value:{...value}});if(track.samples.length>4){if(track.cursor!==null&&track.samples[1].at>track.cursor)track.samples.splice(2,1);else track.samples.shift();}this.tracks.set(value.id,track);}}
+ positions(now:number,delay:number){const target=now+(this.offset??0)-delay;return[...this.tracks.values()].map(track=>{const dt=Math.max(0,now-track.last);track.last=now;const samples=track.samples,newest=samples.at(-1)!;track.cursor=track.cursor===null?Math.min(target,newest.at):Math.max(track.cursor,Math.min(target,newest.at,track.cursor+dt*1.1));let a=samples[0],b=newest;for(let i=1;i<samples.length;i++)if(track.cursor<=samples[i].at){a=samples[i-1];b=samples[i];break;}const t=Math.max(0,Math.min(1,(track.cursor-a.at)/Math.max(1,b.at-a.at)));return{...b.value,x:a.value.x+(b.value.x-a.value.x)*t,y:a.value.y+(b.value.y-a.value.y)*t};});}
+ reset(){this.tracks.clear();this.offset=null;}
+}

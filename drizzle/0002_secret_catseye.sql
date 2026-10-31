@@ -1,0 +1,25 @@
+ALTER TABLE `players` ADD `input_json` text DEFAULT '{}' NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `input_seq` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `input_at` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `pos_epoch` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `stun_until` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `immune_until` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `slow_until` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `foam_charges` integer DEFAULT 5 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `foam_ready_at` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `charge_at` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `grenades` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `fire_seq` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `throw_seq` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `last_fire_at` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `last_fire_aim` real DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `face_x` real DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `face_y` real DEFAULT -1 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `stuck_at` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `stuck_x` real DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `players` ADD `stuck_y` real DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `rooms` ADD `mode` text DEFAULT 'classic' NOT NULL;--> statement-breakpoint
+ALTER TABLE `rooms` ADD `map_id` text DEFAULT 'classic' NOT NULL;--> statement-breakpoint
+ALTER TABLE `rooms` ADD `world` text DEFAULT '{}' NOT NULL;--> statement-breakpoint
+ALTER TABLE `rooms` ADD `rng` integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE `rooms` ADD `chaos` integer DEFAULT 0 NOT NULL;

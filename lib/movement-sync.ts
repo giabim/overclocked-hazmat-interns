@@ -1,10 +1,12 @@
 import { clamp, WORLD } from "./game";
 import { ROUND } from "./bot-settings";
+import {mapForId,moveCircle} from "./sim/map";
+import {BALANCE} from "./sim/balance";
 
 type Point = {x:number;y:number};
 type Sample = Point & {serverNow:number};
-type SyncedPlayer = Point & {id:string;seq:number;positionAt:number};
-type MovementState = {code:string;roundId:number;status:string;serverNow:number;players:SyncedPlayer[]};
+type SyncedPlayer = Point & {id:string;seq:number;positionAt:number;posEpoch?:number;stunUntil?:number;slowUntil?:number};
+type MovementState = {code:string;roundId:number;status:string;serverNow:number;mapId?:string;players:SyncedPlayer[]};
 type Track = {samples:Sample[];gaps:number[];cursor:number|null;delay:number};
 
 export const RUNNING_POLL_MS=100;
@@ -17,6 +19,12 @@ export function pollDelay(start:number,now:number,running:boolean){
 // their age, and remote rendering never guesses velocity beyond a snapshot.
 export class MovementSync {
   private epoch="";
+  private map=mapForId();
+  private serverEstimate=0;
+  private positionEpoch=0;private stunUntil=0;private slowUntil=0;
+  corrections=0;
+  get posEpoch(){return this.positionEpoch;}
+  get viewDelayMs(){return Math.max(200,...[...this.tracks.values()].map(t=>t.delay));}
   private epochAt=0;
   private running=false;
   private self:Point|null=null;
@@ -27,27 +35,32 @@ export class MovementSync {
   private clockOffset:number|null=null;
 
   reset(){
-    this.epoch="";this.self=null;this.pending.clear();this.tracks.clear();
+    this.epoch="";this.positionEpoch=0;this.stunUntil=0;this.slowUntil=0;this.serverEstimate=0;this.map=mapForId();this.corrections=0;this.self=null;this.pending.clear();this.tracks.clear();
     this.correction={x:0,y:0,remaining:0};this.acknowledged=-1;this.clockOffset=null;
   }
 
   receive(state:MovementState,selfId:string,receivedAt:number,rtt:number){
-    const epoch=`${state.code}:${state.roundId}:${state.status}`;
+    const epoch=`${state.code}:${state.roundId}:${state.status}:${state.mapId||"classic"}`;
     if(epoch!==this.epoch){this.reset();this.epoch=epoch;this.epochAt=state.serverNow;}
-    this.running=state.status==="running";
+    this.running=state.status==="running";this.map=mapForId(state.mapId);
+    this.serverEstimate=Math.max(this.serverEstimate,state.serverNow+Math.max(0,rtt)/2);
     const offset=state.serverNow+Math.max(0,rtt)/2-receivedAt;
     this.clockOffset=this.clockOffset===null?offset:this.clockOffset+(offset-this.clockOffset)*.1;
     const active=new Set(state.players.map(p=>p.id));
     for(const id of this.tracks.keys())if(!active.has(id))this.tracks.delete(id);
     for(const player of state.players){
       if(player.id===selfId){
+        const hadSelf=!!this.self;
         if(!this.self||!this.running)this.self={x:player.x,y:player.y};
+        const forced=hadSelf&&this.running&&(player.posEpoch??0)!==this.positionEpoch;
+        if(forced){this.correction={x:player.x-this.self!.x,y:player.y-this.self!.y,remaining:150};this.pending.clear();this.corrections++;}
+        this.positionEpoch=player.posEpoch??0;this.stunUntil=player.stunUntil??0;this.slowUntil=player.slowUntil??0;
         // Compare with what we sent for this acknowledged input, not our newer
         // position at response time. RTT alone must never trigger a correction.
         const sent=this.pending.get(player.seq);
         if(sent&&player.seq>this.acknowledged){
           const x=player.x-sent.x,y=player.y-sent.y;
-          if(Math.hypot(x,y)>40)this.correction={x,y,remaining:150};
+          if(Math.hypot(x,y)>40){this.correction={x,y,remaining:150};this.corrections++;}
         }
         this.acknowledged=Math.max(this.acknowledged,player.seq);
         for(const seq of this.pending.keys())if(seq<=player.seq)this.pending.delete(seq);
@@ -83,9 +96,9 @@ export class MovementSync {
   }
 
   localPosition(input:Point,carrying:boolean,dt:number):Point|null{
-    if(!this.self)return null;
+    if(!this.self)return null;this.serverEstimate+=dt*1000;
     if(this.running){
-      const speed=WORLD.speed*(carrying?ROUND.carrySpeedRatio:1);
+      const speed=WORLD.speed*(carrying?ROUND.carrySpeedRatio:1)*(this.stunUntil>this.serverEstimate?0:1)*(this.slowUntil>this.serverEstimate?BALANCE.slowRatio:1);
       let x=input.x*speed*dt,y=input.y*speed*dt;
       if(this.correction.remaining>0){
         const fraction=Math.min(1,dt*1000/this.correction.remaining);
@@ -93,8 +106,7 @@ export class MovementSync {
         this.correction.x*=1-fraction;this.correction.y*=1-fraction;
         this.correction.remaining=Math.max(0,this.correction.remaining-dt*1000);
       }
-      this.self.x=clamp(this.self.x+x,WORLD.margin,WORLD.width-WORLD.margin);
-      this.self.y=clamp(this.self.y+y,WORLD.margin,WORLD.height-WORLD.margin);
+      this.self=moveCircle(this.map,this.self.x,this.self.y,x,y);
     }
     return {...this.self};
   }

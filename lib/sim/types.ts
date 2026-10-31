@@ -1,0 +1,9 @@
+export type RoomRow={code:string;host_id:string;status:string;created_at:number;expires_at:number;round_ends_at:number;round_id:number;sim_at:number;revision:number;mode:string;map_id:string;world:string;rng:number;chaos:number};
+export type PlayerRow={id:string;room_code:string;token_hash:string;name:string;color:string;x:number;y:number;vx:number;vy:number;seq:number;last_at:number;joined_at:number;is_bot:number;bot_level:number;score:number;interact_seq:number;target_id:string|null;next_think_at:number;wobble_x:number;wobble_y:number;drop_at:number;action_kind:number;input_seq:number;input_at:number;input_json:string;pos_epoch:number;stun_until:number;immune_until:number;slow_until:number;foam_charges:number;foam_ready_at:number;charge_at:number;grenades:number;fire_seq:number;throw_seq:number;last_fire_at:number;last_fire_aim:number;face_x:number;face_y:number;stuck_at:number;stuck_x:number;stuck_y:number};
+export type AnomalyRow={id:string;room_code:string;x:number;y:number;carrier_id:string|null;respawn_at:number;generation:number};
+export type Intent={seq:number;dx:number;dy:number;interactSeq:number;x?:number;y?:number;posEpoch?:number;fireSeq?:number;throwSeq?:number;aim?:number;viewDelayMs?:number;rttMs?:number};
+export type Monster={id:string;kind:"slime"|"hound";x:number;y:number;state:string;until:number;frozenUntil:number;targetId:string|null;chaseAt:number;aim:number;den:{x:number;y:number};patrol:{x:number;y:number};hits:{at:number;by:string}[];history:{at:number;x:number;y:number}[]};
+export type Pickup={id:string;x:number;y:number;readyAt:number};
+export type Grenade={id:string;ownerId:string;x:number;y:number;fromX:number;fromY:number;startedAt:number;explodeAt:number};
+export type WorldState={roundId:number;rng:number;monsters:Monster[];pickups:Pickup[];grenades:Grenade[]};
+export type World=WorldState&{room:RoomRow;players:PlayerRow[];anomalies:AnomalyRow[]};

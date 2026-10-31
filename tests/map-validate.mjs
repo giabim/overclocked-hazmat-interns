@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import {moduleFor} from "./render-harness.mjs";
+const {LAB:map,isWall,CELL}=await moduleFor("sim/map");const {flowField,pathDistance}=await moduleFor("sim/nav");
+assert.equal(map.rows.length,15);assert.ok(map.rows.every(r=>r.length===24));assert.equal(map.width*map.height,960*600*4);
+const floor=[];let doors=0;map.rows.forEach((r,y)=>[...r].forEach((c,x)=>{if(c!=="#"){floor.push([x,y]);if(!x||!y||x===23||y===14)assert.equal(c,"E");if(c==="+")doors++;}}));
+const field=flowField(map,[map.spawns[0]]);assert.ok(floor.every(([x,y])=>Number.isFinite(field.cost[y*24+x])));
+assert.ok(floor.every(([x,y])=>[[-1,0],[1,0],[0,-1],[0,1]].filter(([dx,dy])=>!isWall(map,x+dx,y+dy)).length>=2),"no dead ends");
+assert.ok(map.exits.length&&map.dens.length>=1&&map.canisters.length>=6);const exit=flowField(map,map.exits);
+for(const p of map.spawns)assert.ok(pathDistance(exit,p)<=30*CELL);
+console.log(`PASS: 24×15 map, ${floor.length} reachable cells, ${doors} doorways, closed borders except exits, no dead ends, all spawns within 30 cells of exit`);

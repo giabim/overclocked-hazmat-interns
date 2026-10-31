@@ -55,7 +55,7 @@ try{
  const runner=await create("Round Runner");for(let i=0;i<7;i++)await call({action:"add_bot",...runner});
  state=(await call({action:"start",...runner})).state;
  const tickStart=performance.now();let maxMs=0;
- for(let i=0;i<360;i++){advanceTime(500);const t=performance.now();const m=metrics().batchCalls;state=(await sync(runner)).state;maxMs=Math.max(maxMs,performance.now()-t);assert.equal(metrics().batchCalls-m,1);}
+ for(let i=0;i<360;i++){advanceTime(500);const t=performance.now();const m=metrics().batchCalls;state=(await sync(runner)).state;maxMs=Math.max(maxMs,performance.now()-t);assert.equal(metrics().batchCalls-m,2);}
  assert.equal(state.status,"results");const bots=state.players.filter(p=>p.isBot);const total=bots.reduce((n,p)=>n+p.score,0);assert.ok(total>0,`bots must deliver canisters during a full round: ${JSON.stringify(bots)}`);
  const ids=bots.map(p=>p.id).sort();state=(await call({action:"lobby",...runner})).state;assert.deepEqual(state.players.filter(p=>p.isBot).map(p=>p.id).sort(),ids);
  state=(await call({action:"start",...runner})).state;assert.ok(state.players.every(p=>p.score===0));assert.ok(state.players.filter(p=>p.isBot).every(p=>p.level===1));

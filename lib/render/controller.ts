@@ -1,3 +1,4 @@
+import {followOffset} from "./breach-overlay";
 import {Canvas2DRenderer} from "./canvas2d";
 import {FrameHealth} from "./select";
 import type {ArenaRenderer,FrameView,RendererStats,ViewKind} from "./types";
@@ -68,5 +69,6 @@ export class RendererController{
       this.debug({...this.renderer.stats?.()??{calls:0,triangles:0,geometries:0,textures:0,pixelRatio:Math.min(window.devicePixelRatio||1,2)},fps:frameMs?1000/frameMs:0,frameMs,kind:this.renderer.kind});
     }
   }
+  worldPoint(x:number,y:number){if(this.renderer?.worldPoint)return this.renderer.worldPoint(x,y);const offset=this.lastView?.mode==="breach"?followOffset(this.lastView):{x:0,y:0};return{x:x*960+offset.x,y:y*600+offset.y};}
   dispose(){this.disposed=true;this.generation++;document.removeEventListener("visibilitychange",this.visibility);this.clean(this.renderer);this.renderer=null;this.host=null;this.lastView=null;}
 }

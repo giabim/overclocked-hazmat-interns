@@ -19,7 +19,7 @@ try{
     advanceTime(500);const before=metrics().batchCalls;
     const state=(await sync(host,{x:160+i*110,y:300,dx:1})).state;
     near(own(state,host).x,160+i*110,"500ms movement is fully accepted");
-    assert.equal(metrics().batchCalls-before,1);
+    assert.equal(metrics().batchCalls-before,2);
   }
   advanceTime(200);const snapshot=(await sync(guest)).state;
   near(own(snapshot,host).x,600,"observer receives accepted position without server extrapolation");
@@ -35,7 +35,7 @@ try{
   await call({action:"sync",...host,seq:++seq,x:"600",y:300},400);
   await call({action:"sync",...host,seq:++seq,x:600},400);
   await call({action:"sync",...host,seq:++seq,x:null,y:300},400);
-  console.log("PASS: four 500ms updates retain full movement, snapshots do not coast, vector speed limit, one-batch sync, stale/invalid positions");
+  console.log("PASS: four 500ms updates retain full movement, snapshots do not coast, vector speed limit, two-batch transactional sync, stale/invalid positions");
 
   let state=(await sync(host)).state;const canister=state.anomalies[0];
   execute("UPDATE players SET x=160,y=300,last_at=?,vx=0,vy=0 WHERE id=?",Date.now(),host.id);
