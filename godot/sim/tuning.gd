@@ -38,3 +38,5 @@ const HOUND_TIRED_SECONDS: float = 2.0
 const HOUND_WALL_STUN_SECONDS: float = 1.5
 const MAX_CAMERA_KICK_DEGREES: float = 0.5
 const CAMERA_KICK_DECAY: float = 3.0
+const HEAD_BOB_AMPLITUDE: float = 0.015
+const HEAD_BOB_RATE: float = 8.0

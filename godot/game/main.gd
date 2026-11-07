@@ -4,6 +4,7 @@ var grid: MapGrid
 var state: GameState
 var canister_views: CanisterViews
 var feedback_bus: Feedback
+var settings_panel: SettingsPanel
 var _menu_open: bool = false
 var _light: DirectionalLight3D
 
@@ -27,6 +28,7 @@ func _ready() -> void:
 	feedback_bus = Feedback.new()
 	feedback_bus.hud = hud
 	feedback_bus.player = player
+	feedback_bus.caption_target = hud.caption_label
 	add_child(feedback_bus)
 	hud.restart_requested.connect(_restart)
 	hud.menu_requested.connect(_open_menu)
@@ -45,6 +47,11 @@ func _ready() -> void:
 	environment.ambient_light_energy = 0.65
 	world.environment = environment
 	add_child(world)
+	settings_panel = SettingsPanel.new()
+	add_child(settings_panel)
+	hud.settings_requested.connect(_open_settings)
+	hud.orientation_requested.connect(_replay_orientation)
+	SettingsStore.apply_values(self, SettingsStore.load_values())
 	if DisplayServer.get_name() != "headless" and not "--capture" in OS.get_cmdline_user_args() and not SettingsStore.orientation_finished():
 		get_tree().change_scene_to_file.call_deferred("res://game/orientation/orientation.tscn")
 
@@ -84,3 +91,17 @@ func _restart() -> void:
 func _open_menu() -> void:
 	_menu_open = true
 	player.input_enabled = false
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F10:
+		_open_settings()
+		get_viewport().set_input_as_handled()
+
+
+func _open_settings() -> void:
+	settings_panel.open(self)
+
+
+func _replay_orientation() -> void:
+	get_tree().change_scene_to_file("res://game/orientation/orientation.tscn")

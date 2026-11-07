@@ -3,6 +3,10 @@ extends CanvasLayer
 
 signal restart_requested
 signal menu_requested
+signal settings_requested
+signal orientation_requested
+
+var caption_label: Label
 
 var _heat: ProgressBar
 var _heat_text: Label
@@ -16,6 +20,7 @@ var _results: Panel
 var _result_title: Label
 var _result_details: Label
 var _menu: Panel
+var _menu_help: Label
 var _shown_results: bool = false
 var _root: Control
 
@@ -54,6 +59,10 @@ func _ready() -> void:
 	_flash = _label(_root, "", Vector2(-300, 110), Vector2(600, 40), 22, Vector2(0.5, 0))
 	_flash.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_flash.add_theme_color_override("font_color", Color.WHITE)
+	caption_label = _label(_root, "", Vector2(-280, -150), Vector2(560, 28), 14, Vector2(0.5, 1))
+	caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	caption_label.add_theme_color_override("font_color", Color.WHITE)
+	_button(_root, "SETTINGS [F10]", Vector2(28, 88), Vector2(150, 30), func() -> void: settings_requested.emit())
 	var crosshair: Label = _label(_root, "+", Vector2(-10, -15), Vector2(20, 30), 20, Vector2(0.5, 0.5))
 	crosshair.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_results = _panel(_root, Vector2(-240, -176), Vector2(480, 352), Vector2(0.5, 0.5))
@@ -64,12 +73,15 @@ func _ready() -> void:
 	_button(_results, "PLAY AGAIN", Vector2(28, 270), Vector2(202, 48), _restart)
 	_button(_results, "MAIN MENU", Vector2(248, 270), Vector2(202, 48), _open_menu)
 	_results.hide()
-	_menu = _panel(_root, Vector2(-240, -135), Vector2(480, 270), Vector2(0.5, 0.5))
+	_menu = _panel(_root, Vector2(-240, -190), Vector2(480, 380), Vector2(0.5, 0.5))
 	_menu.mouse_filter = Control.MOUSE_FILTER_STOP
 	_label(_menu, "OVERCLOCKED", Vector2(28, 28), Vector2(424, 48), 32)
 	_label(_menu, "THE HAZMAT INTERNS / SOLO PROTOTYPE", Vector2(28, 83), Vector2(424, 24), 14)
 	_button(_menu, "START SOLO SHIFT", Vector2(28, 139), Vector2(424, 48), _restart)
-	_label(_menu, "WASD move · mouse look · E interact · Esc cursor", Vector2(28, 210), Vector2(424, 32), 14)
+	_button(_menu, "SETTINGS", Vector2(28, 195), Vector2(424, 42), func() -> void: settings_requested.emit())
+	_button(_menu, "REPLAY ORIENTATION", Vector2(28, 245), Vector2(424, 42), func() -> void: orientation_requested.emit())
+	_menu_help = _label(_menu, "", Vector2(28, 308), Vector2(424, 56), 14)
+	_menu_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_menu.hide()
 
 
@@ -81,14 +93,16 @@ func sync(state: GameState, delta: float) -> void:
 	_carry.text = "[+] CARRYING COOLANT" if state.player.carrying >= 0 else "[ ] EMPTY HANDS"
 	_carry.modulate = LevelBuilder.COOLANT if state.player.carrying >= 0 else Color("a5afb4")
 	_prompt.text = "FIND COOLANT / CYAN CANISTERS"
+	_menu_help.text = "%s move · mouse look · %s interact · %s cursor" % [SettingsStore.movement_binding_text(), SettingsStore.binding_text("interact"), SettingsStore.binding_text("pause")]
+	var interact_key: String = SettingsStore.binding_text("interact")
 	if state.phase == GameState.Phase.EXTRACTION:
 		_prompt.text = "EXTRACT AT AIRLOCK / %ds" % ceili(state.extraction_remaining)
 	elif state.player.carrying >= 0:
-		_prompt.text = "[E] DELIVER COOLANT / HEAT -6%" if Rules.at_airlock(state) else "CARRY TO AIRLOCK / EAST WING"
+		_prompt.text = "[%s] DELIVER COOLANT / HEAT -6%%" % interact_key if Rules.at_airlock(state) else "CARRY TO AIRLOCK / EAST WING"
 	else:
 		for canister: CanisterState in state.canisters:
 			if canister.available and state.player.position.distance_to(canister.position) <= Tuning.INTERACT_RANGE:
-				_prompt.text = "[E] PICK UP COOLANT"
+				_prompt.text = "[%s] PICK UP COOLANT" % interact_key
 				break
 	_map.state = state
 	_map.queue_redraw()

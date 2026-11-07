@@ -9,7 +9,10 @@ var _demo: Node3D
 var _hound: Node3D
 var _hint: Label
 var _heading: Label
+var _skip: Button
 var feedback_bus: Feedback
+var settings_panel: SettingsPanel
+var _caption: Label
 var _leaving: bool = false
 
 @onready var player: PlayerView = $Player
@@ -59,6 +62,10 @@ func _ready() -> void:
 	feedback_bus.player = player
 	add_child(feedback_bus)
 	_build_ui()
+	feedback_bus.caption_target = _caption
+	settings_panel = SettingsPanel.new()
+	add_child(settings_panel)
+	SettingsStore.apply_values(self, SettingsStore.load_values())
 
 
 func _physics_process(delta: float) -> void:
@@ -78,6 +85,8 @@ func _process(_delta: float) -> void:
 		_doors[index].visible = not state.open_doors[index]
 	_heading.text = "%02d / %s" % [state.room + 1, ["LOCKER", "SUPPLY", "SLIME PEN", "GLASS HALL"][state.room]]
 	_hint.text = state.hint()
+	_hint.text = _hint.text.replace("WASD", SettingsStore.movement_binding_text()).replace("E to", SettingsStore.binding_text("interact") + " to").replace("Click to", SettingsStore.binding_text("fire") + " to")
+	_skip.text = "SKIP / %s FOR CURSOR" % SettingsStore.binding_text("pause")
 	var slime_material: StandardMaterial3D = _slime.material_override
 	slime_material.albedo_color = LevelBuilder.COOLANT if state.foam_hits > 0 else Color("7bd35a")
 	_slime.scale.y = 0.45 if state.foam_hits == Tuning.CONTAIN_FREEZES else 1.0
@@ -103,6 +112,10 @@ func _build_ui() -> void:
 	_heading.position = Vector2(28, 28)
 	_heading.add_theme_font_size_override("font_size", 24)
 	_heading.add_theme_color_override("font_color", LevelBuilder.AMBER)
+	_caption = Label.new()
+	ui.add_child(_caption)
+	_caption.position = Vector2(28, 70)
+	_caption.add_theme_font_size_override("font_size", 14)
 	_hint = Label.new()
 	ui.add_child(_hint)
 	_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
@@ -112,15 +125,25 @@ func _build_ui() -> void:
 	_hint.add_theme_font_size_override("font_size", 22)
 	_hint.add_theme_color_override("font_color", LevelBuilder.COOLANT)
 	var skip: Button = Button.new()
+	_skip = skip
 	skip.name = "Skip"
 	ui.add_child(skip)
 	skip.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	skip.offset_left = -278
+	skip.offset_left = -350
 	skip.offset_right = -28
 	skip.offset_top = 24
 	skip.offset_bottom = 68
 	skip.text = "SKIP / ESC FOR CURSOR"
 	skip.pressed.connect(_finish)
+	var settings: Button = Button.new()
+	ui.add_child(settings)
+	settings.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	settings.offset_left = -278
+	settings.offset_right = -28
+	settings.offset_top = 78
+	settings.offset_bottom = 116
+	settings.text = "SETTINGS [F10]"
+	settings.pressed.connect(func() -> void: settings_panel.open(self))
 	var crosshair: Label = Label.new()
 	ui.add_child(crosshair)
 	crosshair.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -144,6 +167,12 @@ func _finish() -> void:
 	if SettingsStore.finish_orientation(settings_path) != OK:
 		push_warning("Orientation progress could not be saved")
 	get_tree().change_scene_to_file.call_deferred("res://game/main.tscn")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F10:
+		settings_panel.open(self)
+		get_viewport().set_input_as_handled()
 
 
 func _make_hound() -> Node3D:

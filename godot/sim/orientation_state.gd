@@ -41,7 +41,7 @@ func advance(input: PlayerInput, delta: float) -> void:
 	game.events.clear()
 	if finished:
 		return
-	var active: bool = input.move.length_squared() > 0 or not is_equal_approx(input.yaw, _last_yaw) or input.interact or input.fire
+	var active: bool = input.move.length_squared() > 0 or input.look_changed or not is_equal_approx(input.yaw, _last_yaw) or input.interact or input.fire
 	idle_seconds = 0.0 if active else idle_seconds + delta
 	_last_yaw = input.yaw
 	game.player.step(game.grid, input, delta)

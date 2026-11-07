@@ -1,7 +1,7 @@
 # Notes
 
 - Owner chose godot/ in giabim/overclocked-hazmat-interns on godot-long-term; this supersedes the separate-repository instructions in preserved GUIDE.md.
-- M0, M1.1-M1.3 and M1.5-M1.7 are complete. Owner approved silhouette; movement/cue review still needs details. Owner explicitly requested continued implementation; proceed with M2 while leaving manual checks pending. See docs/review/M1.md.
-- Do not mark deferred manual checks approved without specific owner feedback. Silhouette gate is approved.
-- Latest automated check: 21/21 tests plus running-scene pickup/delivery/extraction/results/restart smoke, without warnings. Original placeholder meshes and sounds require no external assets.
-- CI workflow is ../.github/workflows/godot-ci.yml; gameplay changes stay inside godot/.
+- M0, M1.1-M1.3, M1.5-M1.7, and M2.1-M2.4 are complete. Owner approved the intern silhouette. M1.4 movement/cue feedback remains deferred; owner requested continued implementation.
+- Next is M2.5: 3-5 new players, no explanation, then fix their top 3 observed problems before M3. Do not fabricate observations or mark manual checks approved.
+- Automated baseline: 29/29 tests; running-scene settings/motion/shift lifecycle smoke; orientation/Skip/save/shift smoke. Settings tabs and Low/High Compatibility renders checked.
+- CI workflow is ../.github/workflows/godot-ci.yml. No external art/audio assets or network services were added.

@@ -17,7 +17,13 @@ func test_hints_wait_eight_idle_seconds_and_reset_on_input() -> String:
 		return "Idle hint missing"
 	input.move = Vector2.RIGHT
 	state.advance(input, 0.01)
-	return "" if state.hint().is_empty() else "Input must hide the hint"
+	if not state.hint().is_empty():
+		return "Movement must hide the hint"
+	input.move = Vector2.ZERO
+	state.advance(input, 8.1)
+	input.look_changed = true
+	state.advance(input, 0)
+	return "" if state.hint().is_empty() else "Vertical mouse look must also reset idle hints"
 
 
 func test_light_delivery_and_three_foams_unlock_rooms_in_order() -> String:

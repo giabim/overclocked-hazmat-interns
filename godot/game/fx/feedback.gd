@@ -6,6 +6,9 @@ signal fx(kind: StringName, data: Dictionary)
 
 var hud: ShiftHUD
 var player: PlayerView
+var caption_target: Label
+var _caption_remaining: float = 0
+var _subtitles: bool = true
 var _audio: ShiftAudio
 
 
@@ -27,6 +30,10 @@ func publish(events: Array[Dictionary], fallback: Vector3 = Vector3.ZERO) -> voi
 
 func _on_fx(kind: StringName, data: Dictionary) -> void:
 	_audio.play_event(kind)
+	var captions: Dictionary = {&"pickup": "CLANK / COOLANT SECURED", &"delivery": "WHOOSH / COOLANT DELIVERED", &"heat_warning": "ALARM / LAB OVERHEATING", &"hound_windup": "CRACKLE / HOUND WINDING UP", &"hound_wall_stun": "CLANG / HOUND HIT A WALL", &"contained": "CLUNK / SPECIMEN CONTAINED"}
+	if _subtitles and caption_target != null and captions.has(kind):
+		caption_target.text = captions[kind]
+		_caption_remaining = 2.0
 	if hud != null:
 		hud.feedback(kind)
 	if player != null and kind in [&"foam_fired", &"delivery", &"contained"]:
@@ -54,6 +61,17 @@ func _on_fx(kind: StringName, data: Dictionary) -> void:
 			if player != null:
 				var direction: Vector3 = -player.camera.global_transform.basis.z
 				_burst(player.camera.global_position + direction * 0.6, LevelBuilder.COOLANT.lightened(0.6), 16, 0.22, direction, 15)
+
+
+func _process(delta: float) -> void:
+	_caption_remaining = maxf(0, _caption_remaining - delta)
+	if caption_target != null:
+		caption_target.visible = _subtitles and _caption_remaining > 0
+
+
+func apply_settings(values: Dictionary) -> void:
+	_subtitles = values["subtitles"]
+	_audio.set_volume(values["sfx_volume"])
 
 
 func _burst(at: Vector3, color: Color, amount: int, lifetime: float, direction: Vector3 = Vector3.UP, spread: float = 65, size: float = 0.06) -> void:

@@ -32,6 +32,11 @@ func play_event(kind: StringName) -> void:
 		_player.play()
 
 
+func set_volume(value: float) -> void:
+	_player.volume_db = -12 + linear_to_db(maxf(value, 0.0001))
+	_player.stream_paused = value <= 0
+
+
 func _exit_tree() -> void:
 	_player.stop()
 	_player.stream = null
