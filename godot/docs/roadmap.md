@@ -13,7 +13,7 @@ Rough time is for part-time work (~10 h/week). Each milestone ends with a **cohe
 ### M0 — Skeleton
 - [x] **M0.1** Split `docs/GUIDE.md` into files at each `<!-- FILE: path -->` … `<!-- END FILE -->` marker (copy exactly). Add `README.md` (5 lines), `docs/CHANGELOG.md`, `docs/CREDITS.md`, `docs/notes.md`, `.gitignore` (`.godot/`, `.tools/`, `build/`, `*.tmp`), `.gitattributes` (`* text=auto eol=lf`, binaries `binary`). **Done:** files exist; AGENTS.md ≤ 70 lines.
 - [x] **M0.2** `tools/get_godot.sh` and `tools/check.sh` from §5.7. **Done:** `./tools/get_godot.sh` prints `4.7.2.stable…`.
-- [ ] **M0.3** `project.godot` per §5.2, empty `game/main.tscn` (Node3D + Camera3D + "Overclocked" label), input map. **Done:** `--import` has no errors.
+- [x] **M0.3** `project.godot` per §5.2, empty `game/main.tscn` (Node3D + Camera3D + "Overclocked" label), input map. **Done:** `--import` has no errors.
 - [ ] **M0.4** `tests/run_all.gd` (§5.7) + `tests/test_smoke.gd` (one passing test). **Done:** `./tools/check.sh` exits 0 and prints `1/1 tests passed`.
 - [ ] **M0.5** CI workflow (§5.7). **Done:** CI is green on GitHub.
 

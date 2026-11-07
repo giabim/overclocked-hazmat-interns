@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[node name="Overclocked" type="Node3D"]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+current = true
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Title" type="Label" parent="HUD"]
+offset_left = 48.0
+offset_top = 40.0
+offset_right = 540.0
+offset_bottom = 110.0
+theme_override_colors/font_color = Color(0.949, 0.663, 0, 1)
+theme_override_font_sizes/font_size = 48
+text = "Overclocked"
