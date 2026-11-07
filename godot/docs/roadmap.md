@@ -18,7 +18,7 @@ Rough time is for part-time work (~10 h/week). Each milestone ends with a **cohe
 - [x] **M0.5** CI workflow (§5.7). **Done:** CI is green on GitHub.
 
 ### M1 — Vertical slice (offline, 1 player)
-- [ ] **M1.1** `sim/map_grid.gd`, `maps/lab_a.txt`. Tests: size 24×15; 213 walkable; all reachable from `P` (BFS); counts of `C G M P E +` match §5.4.
+- [x] **M1.1** `sim/map_grid.gd`, `maps/lab_a.txt`. Tests: size 24×15; 213 walkable; all reachable from `P` (BFS); counts of `C G M P E +` match §5.4.
 - [ ] **M1.2** `sim/grid_move.gd` (§5.4), `sim/tuning.gd`. Tests: 10,000 random moves never end inside a wall; sliding along a wall keeps the parallel motion; a 10 m move in one call can't pass through a 2 m wall.
 - [ ] **M1.3** `game/level/level_builder.gd`: builds floor, walls (MultiMesh), door frames and exit from the grid. Colors from `docs/art.md`. **Done:** draw calls ≤ 40 in the Lab A scene (show `Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)` in a debug label).
 - [ ] **M1.4** `game/player/player_view.gd`: first-person camera at 1.6 m, captured mouse, `Camera3D.keep_aspect = KEEP_WIDTH` with FOV setting, inputs → `sim` each tick, view interpolation. **Done:** 👤 You walk the whole map; it feels smooth; no camera lag.
