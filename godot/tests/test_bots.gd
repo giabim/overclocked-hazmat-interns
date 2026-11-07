@@ -106,8 +106,12 @@ func test_bot_league_ranks_levels_and_bots_keep_moving() -> String:
 				if state.finished():
 					break
 			scores.append(state.score)
+			if full and (seed_value + 1) % 10 == 0:
+				print("Bot league Lv%d: %d/%d shifts" % [level, seed_value + 1, shifts])
 		scores.sort()
 		medians.append(scores[scores.size() / 2])
+		if full:
+			print("Bot league Lv%d median: %d" % [level, medians[-1]])
 	if not (medians[2] > medians[1] and medians[1] > medians[0]):
 		return "Median scores should rank Lv3 > Lv2 > Lv1, got %s" % [medians]
 	return ""

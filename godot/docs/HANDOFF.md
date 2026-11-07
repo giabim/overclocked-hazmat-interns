@@ -29,10 +29,10 @@ Never invent playtest results. Reply in ≤ 10 lines.
 
 ## 2. Status
 
-- **Implemented:** M3.1–M3.5, M3 cohesion check, M4.1–M4.4. The full M4.4 50-shift-per-level verification is running; keep its acceptance box unchecked until it finishes.
+- **Done:** M3.1-M3.5, M3 cohesion implementation, M4.1-M4.4. Full 150-shift verification passed: medians Lv1 87 < Lv2 102 < Lv3 113; see docs/reports/bot-league-2026-11-07.md.
 - **Checks:** `./tools/check.sh` on Godot 4.7.2 (Linux headless) → **57/57 tests**, both scene smokes pass (~40 s).
 - **Review renders** (`docs/shots/`): `M3_specimens.png` (77 draw calls), `M3_orientation_slime.png`, `M3_orientation_hound.png`, `M4_bots.png` (7 bots, 93 draw calls; limit 120). Made with `xvfb-run -a .tools/godot --path . --rendering-method gl_compatibility --script res://tools/capture_scene.gd -- --capture --specimens` (or `--bots`, or `--orientation --slime-pen` / `--glass-hall`).
-- **Bot league:** default test (3 × 150 s shifts per level) passes. A 6 × 180 s run gave medians Lv1 68 < Lv2 78 < Lv3 85; catches per run: Lv1 178, Lv2 9, Lv3 1. The full `BOT_LEAGUE=1` run (50 × 240 s per level) was started but not finished.
+- **Bot league:** default test (3 × 150 s shifts per level) passes. A 6 × 180 s run gave medians Lv1 68 < Lv2 78 < Lv3 85; catches per run: Lv1 178, Lv2 9, Lv3 1. Codex completed the full BOT_LEAGUE=1 run on 2026-11-07: 50 shifts per level, medians 87 < 102 < 113, no flagged goal stalls.
 - **Waiting for a human (👤):** M1.4 movement feel, M2.5 Playtest #1, feel/audio check of M3 on Windows, Playtest #2 (bots).
 - **Audio smoke flake fixed (Codex, 2026-11-07):** stopped playback objects now drain before scene resources are freed. Verified 12 consecutive passes of all 3 smokes (36 clean processes), including active/paused/overlapping/positional audio.
 
