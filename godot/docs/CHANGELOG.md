@@ -18,3 +18,4 @@
 - 2026-11-06 — M2.2: Unified HUD, synthesized audio and Compatibility particles under one typed feedback bus; sim events remain immutable and positional; 26 tests, both scene smokes and FX render pass.
 - 2026-11-06 — M2.3: Added airlock steam, hound sparks, bounded cosmetic camera kick and Reduce Motion suppression; corrected cue tinting. Runtime checks prove aiming/sim state remain unchanged; 26 tests and scene smokes pass.
 - 2026-11-06 — M2.4: Added F10 settings with live remaps/prompts, sensitivity/invert, horizontal FOV, off-by-default head bob, Reduce Motion, foam hold/toggle, subtitles, volumes and Low/Medium/High tiers. Saved settings preserve orientation progress; 29 tests and both scene smokes pass; all settings tabs and Low/High GPU renders verified.
+- 2026-11-06 — M2.5 preparation: Added anonymous 3-5 player observation sheet and ranked-fix/retest protocol. Human playtest not yet run; M2.5 remains unchecked.
