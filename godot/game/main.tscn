@@ -1,6 +1,9 @@
-[gd_scene format=3]
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/main.gd" id="1_main"]
 
 [node name="Overclocked" type="Node3D"]
+script = ExtResource("1_main")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 current = true
@@ -15,3 +18,11 @@ offset_bottom = 110.0
 theme_override_colors/font_color = Color(0.949, 0.663, 0, 1)
 theme_override_font_sizes/font_size = 48
 text = "Overclocked"
+
+[node name="Debug" type="Label" parent="HUD"]
+offset_left = 48.0
+offset_top = 108.0
+offset_right = 600.0
+offset_bottom = 140.0
+theme_override_colors/font_color = Color(0.18, 0.769, 0.788, 1)
+text = "LAB A"
