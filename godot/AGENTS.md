@@ -4,7 +4,7 @@ Co-op first-person game: interns in hazmat suits keep an overheating underground
 
 ## Scope
 - Work only in godot/ in giabim/overclocked-hazmat-interns (branch: godot-long-term). Run commands from godot/.
-- One task = one roadmap item (`docs/roadmap.md`). Don't start the next item.
+- Complete and verify one roadmap item at a time. Owner-authorized continuous work proceeds in roadmap order.
 
 ## Read only what you need (saves tokens)
 - Always: this file. Then **only** the roadmap section named in the task, plus the files it lists.
