@@ -9,3 +9,4 @@
 - 2026-11-06 — M1.1: Added Lab A and pure typed MapGrid; verified 24x15 size, all 213 reachable cells, spawn counts, invalid maps, and outside walls (5/5 total tests).
 - 2026-11-06 — M1.2: Added shared substepped circle movement and tuning; 10,000 seeded moves, sliding, 10 m wall crossing, corners, and zero motion pass (9/9 total tests).
 - 2026-11-06 — M1.3: Batched lab walls, floor, door frames, airlock and wing markings; actual Compatibility render measures 18 draw calls (limit 40), screenshot reviewed; 10/10 tests pass.
+- 2026-11-06 — M1.4 implementation: Added first-person frame-rate mouse look, horizontal FOV, 30 Hz shared input/state movement and view interpolation; 12/12 tests pass. Human smoothness/map walkthrough remains pending.

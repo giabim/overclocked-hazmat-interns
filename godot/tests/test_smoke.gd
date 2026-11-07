@@ -6,7 +6,7 @@ func test_project_boots_with_required_inputs() -> String:
 	if packed == null:
 		return "Main scene did not load"
 	var scene: Node = packed.instantiate()
-	var camera: Camera3D = scene.get_node_or_null("Camera3D")
+	var camera: Camera3D = scene.get_node_or_null("Player/Camera3D")
 	var title: Label = scene.get_node_or_null("HUD/Title")
 	var valid: bool = scene is Node3D and camera != null and title != null
 	if valid:

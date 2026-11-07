@@ -1,16 +1,17 @@
 extends Node3D
 
-@onready var camera: Camera3D = $Camera3D
+var grid: MapGrid
+
+@onready var player: PlayerView = $Player
 @onready var debug_label: Label = $HUD/Debug
 
 
 func _ready() -> void:
-	var grid: MapGrid = MapGrid.from_text(FileAccess.get_file_as_string("res://maps/lab_a.txt"))
+	grid = MapGrid.from_text(FileAccess.get_file_as_string("res://maps/lab_a.txt"))
 	var level: LevelBuilder = LevelBuilder.new()
 	add_child(level)
 	level.build(grid)
-	camera.position = Vector3(24, 38, 36)
-	camera.look_at(Vector3(24, 0, 15))
+	player.configure(grid, grid.cell_center(grid.cells_of("P")[0]))
 	var light: DirectionalLight3D = DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-65, -30, 0)
 	light.light_color = Color("ffdfb4")
@@ -25,6 +26,10 @@ func _ready() -> void:
 	environment.ambient_light_energy = 0.65
 	world.environment = environment
 	add_child(world)
+
+
+func _physics_process(delta: float) -> void:
+	player.state.step(grid, player.read_input(), delta)
 
 
 func _process(_delta: float) -> void:
