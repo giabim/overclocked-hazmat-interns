@@ -1,87 +1,102 @@
 # Handoff — continue from here (for ChatGPT / Codex)
 
-Updated: 2026-11-07. Written by Claude. Read this file and `AGENTS.md` before working.
+Updated: 2026-11-07, by Claude. Read this file and `AGENTS.md` before working.
+
+**Starter prompt (paste to Codex):**
+
+```
+Read godot/AGENTS.md and godot/docs/HANDOFF.md. Confirm ./tools/check.sh passes (57/57 tests + 2 scene smokes).
+Then do the first unchecked item in HANDOFF §6 that does not need a human. Follow AGENTS.md "Done when".
+Never invent playtest results. Reply in ≤ 10 lines.
+```
 
 ## 1. Where the work is
 
 - Repo `giabim/overclocked-hazmat-interns`, branch `godot-long-term`, folder `godot/`.
-- Base: `5514b7f` (M2.5 sheet). Claude added these commits on top (delivered as a git bundle / patch files, because Claude couldn't push):
+- Base: `5514b7f` (M2.5 playtest sheet). Claude could not push, so its commits come as a git bundle / mailbox file. The owner applies them first (§7).
 
 | Commit | What |
 | --- | --- |
 | `beb8a10` | M3.1 grid line of sight + BFS flow field |
 | `3de5975` | M3.2–M3.4 sim: specimens, foam, grenades, caught rules |
-| `c7715a5` | This handoff file |
 | `5c3a27e` | M3.4–M3.5 views: specimens, den cages, grenades, caught card + arrows, positional audio, sweep blips, foam/grenade HUD |
-| `a4dd0cc`, `d49c817` | Handoff update; M3 cohesion (Orientation uses real specimen records) |
+| `d49c817` | M3 cohesion: Orientation R3/R4 use real specimen records + views |
 | `e08d283` | M4.1/M4.2/M4.4: bot brains Lv1–3, multi-player rules, bot league test |
+| `0762ece` | M4.3: lobby (0–7 bots, level), merged bot models, minimap dots |
+| last commit | This report |
 
-If the commits are not on GitHub yet, the owner applies them first (see §6).
+(The other commits in between only update this file.)
 
-## 2. Verified
+## 2. Status
 
-`./tools/check.sh` on Godot 4.7.2 (Linux headless): **56/56 tests** (~36 s), both scene smokes pass, no warnings. Review render: `docs/shots/M3_specimens.png` (77 draw calls, limit 120), made with `xvfb-run -a .tools/godot --path . --rendering-method gl_compatibility --script res://tools/capture_scene.gd -- --capture --specimens`.
+- **Done:** M3.1–M3.5, M3 cohesion check, M4.1–M4.4.
+- **Checks:** `./tools/check.sh` on Godot 4.7.2 (Linux headless) → **57/57 tests**, both scene smokes pass (~40 s).
+- **Review renders** (`docs/shots/`): `M3_specimens.png` (77 draw calls), `M3_orientation_slime.png`, `M3_orientation_hound.png`, `M4_bots.png` (7 bots, 93 draw calls; limit 120). Made with `xvfb-run -a .tools/godot --path . --rendering-method gl_compatibility --script res://tools/capture_scene.gd -- --capture --specimens` (or `--bots`, or `--orientation --slime-pen` / `--glass-hall`).
+- **Bot league:** default test (3 × 150 s shifts per level) passes. A 6 × 180 s run gave medians Lv1 68 < Lv2 78 < Lv3 85; catches per run: Lv1 178, Lv2 9, Lv3 1. The full `BOT_LEAGUE=1` run (50 × 240 s per level) was started but not finished.
+- **Waiting for a human (👤):** M1.4 movement feel, M2.5 Playtest #1, feel/audio check of M3 on Windows, Playtest #2 (bots).
+- **Known flaky check (existed before M3):** a scene smoke can rarely print "ObjectDB instances were leaked at exit" and fail `check.sh`; a rerun passes.
 
-Known flaky (also before M3): a scene smoke can rarely print "ObjectDB instances were leaked at exit" and fail `check.sh`; a rerun passes.
-
-## 3. What the new sim does (all numbers in `sim/tuning.gd`)
+## 3. What was built
 
 | File | Role |
 | --- | --- |
-| `sim/grid_los.gd` | `GridLos.clear(grid, a, b)` (blocks diagonal corner gaps), `free_distance(grid, from, dir, max, radius)`, `cell_of(pos)` |
-| `sim/flow_field.gd` | `FlowField.build(grid, targets)`, `distance(cell)`, `next_cell(cell)`, `steer(pos)` |
-| `sim/specimen_state.gd` | Kind SLIME/HOUND; Mode DEN, PATROL, CHASE, WINDUP, DASH, TIRED, STUNNED, FROZEN |
-| `sim/specimen_ai.gd` | Spawn (1 per 2 participants, max 4, Slime first), patrol, notice, chase, give up, hound wind-up/dash/wall stun/tired |
-| `sim/hazards.gd` | Foam, grenades, freezes + contain, catches, sensor sweep. Called from `Rules.advance` |
-| `sim/grenade_pickup.gd`, `sim/thrown_grenade.gd` | Grenade data |
-| `GameState` | New: `players`, `specimens`, `grenade_pickups`, `thrown_grenades`, `contained`, `field_to(cell)`. `create(..., spawn_specimens = true)` |
-| `PlayerState` | New: `yaw`, `foam_charges`, `foam_cooldown`, `has_grenade`, `stun_remaining`, `immune_remaining`, `facing()` |
+| `sim/grid_los.gd` | `GridLos.clear(grid, a, b)` (blocks diagonal corner gaps), `free_distance(...)`, `cell_of(pos)` |
+| `sim/flow_field.gd` | `FlowField.build(grid, targets, avoid = {})`, `distance`, `next_cell`, `steer` |
+| `sim/specimen_state.gd`, `sim/specimen_ai.gd` | Slime/Hound. Modes DEN, PATROL, CHASE, WINDUP, DASH, TIRED, STUNNED, FROZEN. 1 per 2 participants (max 4), Slime first |
+| `sim/hazards.gd` | `player_actions` (grenade pickup, foam, throw) + `world_step` (crates, fuses, specimens, catches, sweep) |
+| `sim/bot_brain.gd` | Bots Lv1–3; output is a normal `PlayerInput` |
+| `sim/rules.gd` | `Rules.advance(state, input, delta)`: `input` drives players[0]; each `state.brains[i]` drives bot i |
+| `sim/game_state.gd` | `players`, `brains`, `specimens`, `grenade_pickups`, `thrown_grenades`, `contained`, `quota_override`, cached `field_to(cell)`. `create(map, count, seed, spawn_specimens, bot_levels)` |
+| `game/specimens/specimen_views.gd` | Specimen models, den pens (bars close while occupied), looping positional sounds |
+| `game/level/grenade_views.gd` | Grenade crates and arcing grenades |
+| `game/player/bot_views.gd` | Bots: each `InternView` baked into one mesh + 2 number labels (draw-call budget) |
+| `game/ui/hud.gd`, `game/ui/minimap.gd` | Foam/grenade line, caught card + edge arrows + grey-out, sweep blips, crates, bot dots, lobby (BOTS −/+, BOT LEVEL cycle) |
+| `tests/test_grid_los.gd`, `test_specimens.gd`, `test_tools.gd`, `test_specimen_views.gd`, `test_bots.gd` | New tests |
 
-**Events for the views** (`state.events`, each a Dictionary with `kind`):
-
-| kind | data |
-| --- | --- |
-| `foam_fired` | `position`, `direction` |
-| `foam_hit` / `foam_miss` | `id`, `position` / `position` (where the foam lands) |
-| `contained` | `id`, `specimen` (`&"slime"`/`&"hound"`), `position` |
-| `grenade_pickup` / `grenade_respawn` | `id`, `position` |
-| `grenade_thrown` / `grenade_burst` | `from`, `position` / `position` |
-| `caught` | `player`, `specimen`, `how` (`&"dashed"`/`&"touched"`), `from_angle` (0 = in front, +PI/2 = right, −PI/2 = left, ±PI = behind), `position` |
-| `canister_dropped` | `id`, `position` |
-| `slime_notice` / `hound_notice` / `hound_windup` / `hound_wall_stun` | `id`, `position` |
-| `sensor_sweep` | `blips` (`Array[Vector2]` of specimens outside dens) |
+**Events for views** (`state.events`, Dictionaries with `kind`): `foam_fired` (position, direction), `foam_hit` (id, position), `foam_miss` (position), `contained` (id, specimen, position), `grenade_pickup` (id, player, position), `grenade_respawn`, `grenade_thrown` (from, position), `grenade_burst` (position), `caught` (player, specimen, how = dashed/touched, from_angle: 0 front, +PI/2 right, −PI/2 left, ±PI behind, position), `canister_dropped`, `slime_notice` / `hound_notice` / `hound_windup` / `hound_wall_stun` (id, position), `sensor_sweep` (blips). `pickup` / `delivery` now also carry `player`.
 
 ## 4. Choices Claude made (owner can change)
 
-1. Every foam hit counts toward containment, even on an already frozen specimen (spec says "frozen 3 times within 12 s"). Solo players can contain fast; revisit after playtests.
-2. The hound keeps aiming during wind-up and locks direction 0.2 s before the dash (`HOUND_AIM_LOCK_SECONDS`), so a well-timed sidestep makes it hit a wall.
-3. After a catch: the slime ignores players for 3 s; the hound becomes tired (2 s). The player is stunned 1 s, then immune 2.5 s.
-4. Grenades are picked up by walking onto a `G` crate (no key).
-5. A caught player drops the canister where they stand; anyone can pick it up.
-6. Orientation still uses its scripted fakes (`GameState.create(grid, 1, 0, false)`).
-7. Balance note (not a playtest): a random-input test player was caught ~28 times per 4-minute shift with 2 specimens. Tune only after M2.5 observations.
+1. Every foam hit counts toward containment, even on a frozen specimen ("frozen 3 times within 12 s").
+2. The hound aims during wind-up and locks direction 0.2 s before the dash, so a well-timed sidestep makes it hit a wall (stun 1.5 s).
+3. After a catch: player stunned 1 s, then immune 2.5 s; the slime ignores players 3 s, the hound becomes tired. A carried canister drops where the player stood.
+4. Grenades are picked up by walking onto a `G` crate.
+5. Bots: perception = sight (≤ 16 m, line of sight) or hearing (slime 8 m, hound 12 m; frozen specimens are silent). The lobby offers one level for all bots or "MIXED" (1, 2, 3, 1, …), not a separate level per bot.
+6. The shift is won when the human (players[0]) reaches the airlock during extraction; bots walk there too.
+7. Orientation stays catch-free: its slime sleeps, its hounds are scripted but drawn with the real specimen views.
 
-## 5. Next tasks, in order
+## 5. Balance findings (from simulations, not playtests)
 
-Done: M3.1–M3.5 (views: `game/specimens/specimen_views.gd`, `game/level/grenade_views.gd`, HUD card/arrows/overlay/tools line in `game/ui/hud.gd`, sweep blips in `game/ui/minimap.gd`).
+- With 4 bots the normal quota (2 + participants = 6) is met in ~25 s, so a shift ends almost at once. Suggest a quota that grows with team size (e.g. 3 × participants + 2). Owner decides; change only `GameState.quota()` / `sim/tuning.gd`.
+- A random-input test player was caught ~28 times per 4-minute shift with 2 specimens. Wait for real playtest notes before tuning.
 
-1. Done: **M3 cohesion check** — Orientation R3 uses a real sleeping `SpecimenState` slime foamed with `Hazards.try_foam` (contain opens the door); R4's scripted demo/live hounds are mirrored into `SpecimenState` so `SpecimenViews` draws them like in a shift (the live hound waits in a closed pen until the demo ends). Shots: `docs/shots/M3_orientation_slime.png`, `M3_orientation_hound.png`.
-2. **👤 Owner checks:** play a shift — do the slime/hound feel fair? Is the caught card clear? Are the positional sounds audible on Windows? Record in `docs/playtests/`.
-3. **M2.5 (👤 owner):** 3–5 new players, record in `docs/playtests/01.md`, fix the top 3 problems. Never invent observations. M1.4 movement check is also still waiting for the owner.
-4. **M4 bots — sim done** (`sim/bot_brain.gd`; `GameState.create(map, count, seed, spawn_specimens, bot_levels)`; `state.brains[i]` is null for the human, a `BotBrain` for bots; `Rules.advance(state, input, delta)` uses `input` for players[0] and asks each brain for the others).
-   - **Next: M4.3 lobby + bot views.** Menu: bot count 0–7 + level (all, or per bot), then `GameState.create(grid, 1, seed, true, levels)`. Draw bots with `InternView` (number = player id + 1) at interpolated `PlayerState` positions, facing `yaw`, carrying/stun cues. Draw-call budget: `InternView` is ~30 mesh parts, so 7 bots would blow the 120 budget — merge each intern into one mesh (SurfaceTool with vertex colors) or use MultiMesh per part type. Minimap: show bots as numbered dots.
-   - Then 👤 Playtest #2 (solo + 3 bots per level).
-5. **Balance finding (bots, not a playtest):** with 4 bots the normal quota (2 + participants = 6) is met in ~25 s, so a shift ends almost at once. Suggest quota that grows with team size and time (e.g. 3 × participants + 2) — owner decides; change only `sim/tuning.gd` / `GameState.quota()`.
+## 6. Next tasks, in order
 
-Done-when for each task stays as in `AGENTS.md`: `./tools/check.sh` passes, new logic has tests, roadmap box ticked, one CHANGELOG line.
+1. 👤 Owner: apply the commits (§7), push, check CI.
+2. 👤 Owner: M1.4 walk check + play a shift with specimens and bots (feel, caught card clarity, sounds on Windows). Note results in `docs/playtests/`.
+3. 👤 **M2.5 Playtest #1** (3–5 new players), then fix the top 3 problems. Never invent observations.
+4. **Quota balance** (§5) once the owner picks a formula. Add a test.
+5. Optional polish: per-bot level buttons in the lobby; bots use `ping`; fix the flaky ObjectDB leak in the smokes.
+6. 👤 **Playtest #2:** solo + 3 bots at each level. Is Lv1 easy and Lv3 helpful without doing everything?
+7. **M5 Online** (plan first, effort high). Notes: `GameState` is already multi-player. Add `Rules.advance_inputs(state, inputs: Array[PlayerInput], delta)` so the server can feed one input per peer; keep bots server-side; WebSocket per `docs/tech.md` §5.5.
 
-## 6. Applying Claude's commits (owner, Windows Git Bash or PowerShell)
+## 7. Applying Claude's commits (owner)
+
+Download `overclocked-godot.bundle` (or `overclocked-godot.mbox`), then in Git Bash:
 
 ```
 cd "D:/GitHub/game handshake/overclocked-godot-long-term"
 git checkout godot-long-term
-git pull "C:/Users/<you>/Downloads/overclocked-m3.bundle" godot-long-term   # fast-forward
-# or: git am "C:/Users/<you>/Downloads/m3-patches/"*.patch
+git status            # must be clean and at 5514b7f
+git pull ~/Downloads/overclocked-godot.bundle godot-long-term
+# or: git am ~/Downloads/overclocked-godot.mbox
 cd godot && ./tools/check.sh
 git push origin godot-long-term
 ```
+
+## 8. Rules for the next agent
+
+- Follow `AGENTS.md`: one roadmap item per task, typed GDScript, numbers in `sim/tuning.gd`, `./tools/check.sh` must pass.
+- Game rules stay in `sim/` (no Nodes). Views only read state and events.
+- Keep draw calls ≤ 120 (bots are merged meshes for this reason).
+- Art stays "not Among Us" (`docs/art.md`). No dark patterns.
