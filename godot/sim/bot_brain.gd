@@ -23,6 +23,8 @@ var wander_remaining: float = 0.0
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _avoid_field: FlowField = null
 var _last_position: Vector2 = Vector2(INF, INF)
+var _known_alerts: Dictionary = {}
+var _ping_pending: bool = false
 
 
 static func create(bot_level: int, seed_value: int) -> BotBrain:
@@ -60,6 +62,8 @@ func think(state: GameState, me: PlayerState, delta: float) -> PlayerInput:
 	input.throw_grenade = throw_now
 	throw_now = false
 	input.interact = _wants_interact(state, me)
+	input.ping = _ping_pending
+	_ping_pending = false
 	return input
 
 
@@ -70,6 +74,14 @@ static func yaw_for(direction: Vector2) -> float:
 
 func _decide(state: GameState, me: PlayerState) -> void:
 	var known: Array[SpecimenState] = perceive(state, me)
+	var alerts: Dictionary = {}
+	var new_alert: bool = false
+	for specimen: SpecimenState in known:
+		if specimen.can_catch():
+			alerts[specimen.id] = true
+			new_alert = new_alert or not _known_alerts.has(specimen.id)
+	_known_alerts = alerts
+	_ping_pending = level >= 2 and new_alert
 	_choose_aim(state, me, known)
 	_choose_goal(state, me, known)
 	_avoid_field = null

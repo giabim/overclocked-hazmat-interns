@@ -84,3 +84,5 @@ const BOT_SIGHT_RANGE: float = 16.0
 const BOT_GRENADE_SEEK_CELLS: int = 6
 const BOT_ESCORT_RANGE: float = 8.0
 const BOT_STUCK_SECONDS: float = 1.5
+const PING_COOLDOWN_SECONDS: float = 6.0
+const PING_LIFETIME_SECONDS: float = 3.0

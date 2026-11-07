@@ -5,7 +5,7 @@ Updated: 2026-11-07, by Claude. Read this file and `AGENTS.md` before working.
 **Starter prompt (paste to Codex):**
 
 ```
-Read godot/AGENTS.md and godot/docs/HANDOFF.md. Confirm ./tools/check.sh passes (57/57 tests + 3 scene smokes).
+Read godot/AGENTS.md and godot/docs/HANDOFF.md. Confirm ./tools/check.sh passes (64/64 tests + 3 scene smokes).
 Then do the first unchecked item in HANDOFF §6 that does not need a human. Follow AGENTS.md "Done when".
 Never invent playtest results. Reply in ≤ 10 lines.
 ```
@@ -13,7 +13,7 @@ Never invent playtest results. Reply in ≤ 10 lines.
 ## 1. Where the work is
 
 - Repo `giabim/overclocked-hazmat-interns`, branch `godot-long-term`, folder `godot/`.
-- Base: `5514b7f` (M2.5 playtest sheet). Claude could not push, so its commits come as a git bundle / mailbox file. The owner applies them first (§7).
+- Original transfer base: 5514b7f. The bundle through c89bb4a was imported and pushed by Codex on 2026-11-07; section 7 is historical transfer documentation.
 
 | Commit | What |
 | --- | --- |
@@ -78,12 +78,12 @@ Never invent playtest results. Reply in ≤ 10 lines.
 4. **Quota balance** (§5) once the owner picks a formula. Add a test.
 5. Optional polish:
    - [x] Per-bot level buttons, preserved mixed preset, roster bounds, and real-scene team startup; 7-bot editor render is 113 draw calls.
-   - [ ] Bots use ping.
+   - [x] Bots and humans share rate-limited own-location pings. New perceived danger triggers bot pings; private camera/caught cues are scoped to their actor. Eight-ping/7-bot editor render is 115 draw calls.
    - [x] Fix flaky ObjectDB audio cleanup; 57 tests + 3 smokes pass.
 6. 👤 **Playtest #2:** solo + 3 bots at each level. Is Lv1 easy and Lv3 helpful without doing everything?
 7. **M5 Online** (plan first, effort high). Notes: `GameState` is already multi-player. Add `Rules.advance_inputs(state, inputs: Array[PlayerInput], delta)` so the server can feed one input per peer; keep bots server-side; WebSocket per `docs/tech.md` §5.5.
 
-## 7. Applying Claude's commits (owner)
+## 7. Historical transfer instructions (completed)
 
 Download `overclocked-godot.bundle` (or `overclocked-godot.mbox`), then in Git Bash:
 

@@ -177,6 +177,7 @@ func sync(state: GameState, delta: float) -> void:
 
 func feedback(kind: StringName, data: Dictionary = {}) -> void:
 	var messages: Dictionary = {
+		&"ping": "INTERN %02d / HERE" % (int(data.get("player", 0)) + 1),
 		&"pickup": "COOLANT SECURED", &"delivery": "DELIVERED / HEAT -6%", &"heat_warning": "WARNING / LAB OVERHEATING",
 		&"extraction": "QUOTA MET / EXTRACT NOW", &"contained": "+%d CONTAINED" % Tuning.CONTAIN_SCORE,
 		&"grenade_pickup": "FREEZE GRENADE / [%s] TO THROW" % SettingsStore.binding_text("throw"),
@@ -371,6 +372,10 @@ func _open_bot_editor() -> void:
 func _close_bot_editor() -> void:
 	_bot_editor.hide()
 	_menu.show()
+
+
+func modal_open() -> bool:
+	return _menu.visible or _bot_editor.visible or _results.visible
 
 
 func _button(parent: Node, text: String, at: Vector2, dimensions: Vector2, callback: Callable) -> Button:

@@ -13,6 +13,7 @@ var has_grenade: bool = false
 ## Caught: no movement or actions while stunned; no new catch while immune (includes the stun).
 var stun_remaining: float = 0.0
 var immune_remaining: float = 0.0
+var ping_cooldown: float = 0.0
 
 
 func step(grid: MapGrid, input: PlayerInput, delta: float) -> void:

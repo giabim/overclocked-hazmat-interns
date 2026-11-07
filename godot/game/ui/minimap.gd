@@ -5,6 +5,9 @@ var state: GameState
 ## Sensor-sweep blips (specimens are otherwise hidden on the map) and their fade.
 var blips: Array[Vector2] = []
 var blip_strength: float = 0.0
+var _ping_mesh: ArrayMesh = ArrayMesh.new()
+const DIGIT_MASKS: Array[int] = [63, 6, 91, 79, 102, 109, 125, 7, 127, 111]
+const DIGIT_LINES: Array[Vector4] = [Vector4(0, 0, 3, 0), Vector4(3, 0, 3, 3), Vector4(3, 3, 3, 6), Vector4(0, 6, 3, 6), Vector4(0, 3, 0, 6), Vector4(0, 0, 0, 3), Vector4(0, 3, 3, 3)]
 
 
 func _draw() -> void:
@@ -34,6 +37,47 @@ func _draw() -> void:
 		draw_circle(origin + bot.position / Tuning.CELL_SIZE * scale, 2.6, bands[bot.id % bands.size()])
 	var at: Vector2 = origin + state.player.position / Tuning.CELL_SIZE * scale
 	draw_circle(at, 3.2, Color.WHITE)
+	_draw_pings(origin, scale)
 	var names: Array[String] = ["W-01", "E-01", "N-01", "S-01"]
 	for index: int in 4:
 		draw_string(ThemeDB.fallback_font, Vector2(14 + index * 52, 182), names[index], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, LevelBuilder.WING_COLORS[index])
+
+
+func _draw_pings(origin: Vector2, scale: float) -> void:
+	if state.pings.is_empty():
+		return
+	# One draw call for all rings and stencil IDs; individual font/arc calls exceed budget.
+	var vertices: Array[Vector3] = []
+	var colors: Array[Color] = []
+	for ping: TeamPing in state.pings:
+		var center: Vector2 = origin + ping.position / Tuning.CELL_SIZE * scale
+		var strength: float = clampf(ping.remaining / Tuning.PING_LIFETIME_SECONDS, 0, 1)
+		var color: Color = Color(1.0, 0.77, 0.2, strength)
+		var radius: float = 5 + (1 - strength) * 4
+		for segment: int in 20:
+			_stroke(vertices, colors, center + Vector2.from_angle(TAU * segment / 20) * radius, center + Vector2.from_angle(TAU * (segment + 1) / 20) * radius, color)
+		var digits: Array[int] = [0, ping.player_id + 1]
+		for index: int in 2:
+			var at: Vector2 = center + Vector2(6 + index * 5, -5)
+			for segment: int in 7:
+				if DIGIT_MASKS[digits[index]] & (1 << segment):
+					var line: Vector4 = DIGIT_LINES[segment]
+					_stroke(vertices, colors, at + Vector2(line.x, line.y), at + Vector2(line.z, line.w), color)
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array(vertices)
+	arrays[Mesh.ARRAY_COLOR] = PackedColorArray(colors)
+	_ping_mesh.clear_surfaces()
+	_ping_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	draw_mesh(_ping_mesh, null)
+
+
+func _exit_tree() -> void:
+	RenderingServer.canvas_item_clear(get_canvas_item())
+
+
+static func _stroke(vertices: Array[Vector3], colors: Array[Color], from: Vector2, to: Vector2, color: Color) -> void:
+	var side: Vector2 = (to - from).normalized().orthogonal() * 0.6
+	for point: Vector2 in [from + side, to + side, to - side, from + side, to - side, from - side]:
+		vertices.append(Vector3(point.x, point.y, 0))
+		colors.append(color)

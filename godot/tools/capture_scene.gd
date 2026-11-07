@@ -35,6 +35,14 @@ func _capture() -> void:
 		hud.call("_open_bot_editor")
 		for _frame: int in 3:
 			await process_frame
+	if "--pings" in OS.get_cmdline_user_args():
+		var state: GameState = scene.get("state")
+		for caller: PlayerState in state.players:
+			Hazards.try_ping(state, caller)
+		var bus: Feedback = scene.get("feedback_bus")
+		bus.publish(state.events)
+		for _frame: int in 3:
+			await process_frame
 	if "--specimens" in OS.get_cmdline_user_args():
 		_stage_specimen_hud(scene)
 		for _frame: int in 2:
@@ -73,6 +81,8 @@ func _capture() -> void:
 		file = "M2_quality_low.png" if "--low-quality" in OS.get_cmdline_user_args() else "M2_quality_high.png"
 	if "--bot-levels" in OS.get_cmdline_user_args():
 		file = "M4_bot_levels.png"
+	if "--pings" in OS.get_cmdline_user_args():
+		file = "M4_team_pings.png"
 	var error: Error = root.get_texture().get_image().save_png("res://docs/shots/" + file)
 	print("Game render: %d draw calls; screenshot result %d" % [calls, error])
 	if "--settings" in OS.get_cmdline_user_args():

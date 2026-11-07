@@ -29,14 +29,19 @@ func publish(events: Array[Dictionary], fallback: Vector3 = Vector3.ZERO) -> voi
 
 
 func _on_fx(kind: StringName, data: Dictionary) -> void:
-	_audio.play_event(kind)
+	var local_id: int = player.state.id if player != null else 0
+	var local_actor: bool = int(data.get("player", local_id)) == local_id
+	var personal: bool = kind in [&"caught", &"pickup", &"grenade_pickup", &"canister_dropped", &"foam_fired"]
+	if local_actor or not personal:
+		_audio.play_event(kind)
 	var captions: Dictionary = {&"pickup": "CLANK / COOLANT SECURED", &"delivery": "WHOOSH / COOLANT DELIVERED", &"heat_warning": "ALARM / LAB OVERHEATING", &"hound_windup": "CRACKLE / HOUND WINDING UP", &"hound_wall_stun": "CLANG / HOUND HIT A WALL", &"contained": "CLUNK / SPECIMEN CONTAINED", &"caught": "THUD / CAUGHT", &"slime_notice": "SQUELCH / SLIME NEARBY", &"hound_notice": "CRACKLE / HOUND SPOTTED YOU", &"grenade_burst": "CRACK / FREEZE BURST", &"sensor_sweep": "PING / SENSOR SWEEP", &"foam_hit": "CRUNCH / FROZEN"}
-	if _subtitles and caption_target != null and captions.has(kind):
+	captions[&"ping"] = "PING / INTERN %02d" % (int(data.get("player", 0)) + 1)
+	if _subtitles and caption_target != null and captions.has(kind) and (local_actor or not personal):
 		caption_target.text = captions[kind]
 		_caption_remaining = 2.0
-	if hud != null:
+	if hud != null and (local_actor or not personal):
 		hud.feedback(kind, data)
-	if player != null and kind in [&"foam_fired", &"delivery", &"contained", &"caught"]:
+	if player != null and local_actor and kind in [&"foam_fired", &"delivery", &"caught"]:
 		player.add_camera_kick(0.5 if kind == &"caught" else 0.35)
 	if DisplayServer.get_name() == "headless":
 		return
@@ -64,15 +69,18 @@ func _on_fx(kind: StringName, data: Dictionary) -> void:
 		&"caught":
 			_burst(at, Color.WHITE, 14, 0.3)
 		&"foam_fired":
-			if player != null:
+			if player != null and local_actor:
 				var direction: Vector3 = -player.camera.global_transform.basis.z
 				_burst(player.camera.global_position + direction * 0.6, LevelBuilder.COOLANT.lightened(0.6), 16, 0.22, direction, 15)
+			else:
+				var facing: Vector2 = data.get("direction", Vector2.UP)
+				_burst(at, LevelBuilder.COOLANT.lightened(0.6), 16, 0.22, Vector3(facing.x, 0, facing.y), 15)
 
 
 func _process(delta: float) -> void:
 	_caption_remaining = maxf(0, _caption_remaining - delta)
 	if caption_target != null:
-		caption_target.visible = _subtitles and _caption_remaining > 0
+		caption_target.visible = _subtitles and _caption_remaining > 0 and (hud == null or not hud.modal_open())
 
 
 func apply_settings(values: Dictionary) -> void:

@@ -8,6 +8,7 @@ static func tick_player_timers(player: PlayerState, delta: float) -> void:
 	player.stun_remaining = maxf(0.0, player.stun_remaining - delta)
 	player.immune_remaining = maxf(0.0, player.immune_remaining - delta)
 	player.foam_cooldown = maxf(0.0, player.foam_cooldown - delta)
+	player.ping_cooldown = maxf(0.0, player.ping_cooldown - delta)
 	if player.foam_charges >= Tuning.FOAM_MAX_CHARGES:
 		player.foam_recharge = 0.0
 		return
@@ -21,6 +22,8 @@ static func tick_player_timers(player: PlayerState, delta: float) -> void:
 static func player_actions(state: GameState, player: PlayerState, input: PlayerInput) -> void:
 	_grenade_pickup(state, player)
 	if not player.is_stunned():
+		if input.ping:
+			try_ping(state, player)
 		if input.fire:
 			try_foam(state, player)
 		if input.throw_grenade:
@@ -29,12 +32,31 @@ static func player_actions(state: GameState, player: PlayerState, input: PlayerI
 
 ## Everything that happens once per tick: crates, fuses, specimens, catches, sweeps.
 static func world_step(state: GameState, delta: float) -> void:
+	for ping: TeamPing in state.pings.duplicate():
+		ping.remaining -= delta
+		if ping.remaining <= 0:
+			state.pings.erase(ping)
 	_grenade_respawns(state, delta)
 	_fuses(state, delta)
 	for specimen: SpecimenState in state.specimens:
 		SpecimenAI.step(state, specimen, delta)
 	_catches(state)
 	_sweep(state, delta)
+
+
+static func try_ping(state: GameState, player: PlayerState) -> bool:
+	if player.ping_cooldown > 0 or player.is_stunned():
+		return false
+	player.ping_cooldown = Tuning.PING_COOLDOWN_SECONDS
+	for previous: TeamPing in state.pings.duplicate():
+		if previous.player_id == player.id:
+			state.pings.erase(previous)
+	var ping: TeamPing = TeamPing.new()
+	ping.player_id = player.id
+	ping.position = player.position
+	state.pings.append(ping)
+	state.events.append({"kind": &"ping", "player": player.id, "position": player.position})
+	return true
 
 
 ## Fires one foam burst if ready. Returns the frozen specimen or null.
@@ -44,7 +66,7 @@ static func try_foam(state: GameState, player: PlayerState) -> SpecimenState:
 	player.foam_charges -= 1
 	player.foam_cooldown = Tuning.FOAM_COOLDOWN
 	var facing: Vector2 = player.facing()
-	state.events.append({"kind": &"foam_fired", "position": player.position, "direction": facing})
+	state.events.append({"kind": &"foam_fired", "player": player.id, "position": player.position, "direction": facing})
 	var best: SpecimenState = null
 	var best_distance: float = INF
 	var min_dot: float = cos(deg_to_rad(Tuning.FOAM_CONE_DEGREES))
@@ -63,9 +85,9 @@ static func try_foam(state: GameState, player: PlayerState) -> SpecimenState:
 		best_distance = distance
 	if best == null:
 		var reach: float = GridLos.free_distance(state.grid, player.position, facing, Tuning.FOAM_RANGE)
-		state.events.append({"kind": &"foam_miss", "position": player.position + facing * reach})
+		state.events.append({"kind": &"foam_miss", "player": player.id, "position": player.position + facing * reach})
 		return null
-	state.events.append({"kind": &"foam_hit", "id": best.id, "position": best.position})
+	state.events.append({"kind": &"foam_hit", "player": player.id, "id": best.id, "position": best.position})
 	freeze(state, best, Tuning.FOAM_FREEZE_SECONDS)
 	return best
 

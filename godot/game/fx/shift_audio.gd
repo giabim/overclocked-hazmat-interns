@@ -32,6 +32,7 @@ func _ready() -> void:
 	_clips[&"slime_notice"] = _make_clip(0.35, 140, 90, true)
 	_clips[&"hound_notice"] = _make_clip(0.3, 900, 1400, true)
 	_clips[&"sensor_sweep"] = _make_clip(0.25, 1200, 1200, false)
+	_clips[&"ping"] = _make_clip(0.15, 980, 1320, false)
 
 
 func play_event(kind: StringName) -> void:

@@ -10,6 +10,7 @@ var players: Array[PlayerState] = []
 var specimens: Array[SpecimenState] = []
 var grenade_pickups: Array[GrenadePickup] = []
 var thrown_grenades: Array[ThrownGrenade] = []
+var pings: Array[TeamPing] = []
 var contained: int = 0
 ## Custom shifts and tests can set a fixed quota (0 = normal formula).
 var quota_override: int = 0

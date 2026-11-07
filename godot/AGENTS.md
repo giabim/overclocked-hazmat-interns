@@ -22,6 +22,8 @@ Co-op first-person game: interns in hazmat suits keep an overheating underground
 - Tests only: `.tools/godot --headless --path . --script res://tests/run_all.gd`
 - Export: `.tools/godot --headless --path . --export-release "Web" build/web/index.html`
 
+- Windows render check: ./tools/render_capture.ps1 -CaptureFlags @('--capture', '--bots', '--bot-levels', '--pings')
+
 ## Code rules
 - Godot 4 only. Typed GDScript (`var x: int`, `-> void`). Style: Godot style guide (snake_case files/functions, PascalCase classes).
 - Godot 3 → 4: `KinematicBody`→`CharacterBody3D`, `Spatial`→`Node3D`, `yield`→`await`, `export var`→`@export var`, `onready`→`@onready`, `connect("s", o, "m")`→`s.connect(f)`, `instance()`→`instantiate()`, `remote/master/puppet`→`@rpc(...)`.

@@ -1,9 +1,9 @@
 # Notes
 
-- Owner chose godot/ in giabim/overclocked-hazmat-interns on godot-long-term; this supersedes the separate-repository instructions in preserved GUIDE.md.
-- M0, M1.1-M1.3, M1.5-M1.7, and M2.1-M2.4 are complete. Owner approved the intern silhouette. M1.4 movement/cue feedback remains deferred; owner requested continued implementation.
-- Next is M2.5: 3-5 new players, no explanation, then fix their top 3 observed problems before M3. Do not fabricate observations or mark manual checks approved.
-- Automated baseline: 29/29 tests; running-scene settings/motion/shift lifecycle smoke; orientation/Skip/save/shift smoke. Settings tabs and Low/High Compatibility renders checked.
-- CI workflow is ../.github/workflows/godot-ci.yml. No external art/audio assets or network services were added.
-- 2026-11-07: Owner said "continue" while M2.5 (human playtest) is pending, so M3 sim work started in parallel; playtest fixes still come first when results arrive. See docs/HANDOFF.md.
-- 2026-11-07: Imported Claude bundle through c89bb4a and verified/pushed M3/M4 (57 tests). Fixed reproduced audio exit leak with bounded playback draining and retained sound resources; 36 consecutive smoke processes pass. Current suite: 57 tests + 3 scene smokes. Human playtests and quota decision remain pending.
+- Active work: godot/ on giabim/overclocked-hazmat-interns, branch godot-long-term. Original GUIDE.md separate-repo advice is superseded by owner direction.
+- 2026-11-07: Imported Claude bundle through c89bb4a and pushed it. M3/M4 simulation, tools, views, bot levels and lobby are implemented.
+- Handoff polish complete: bounded native-audio drain (36 clean smoke processes), per-bot lobby editor, own-location team pings and correct actor-specific camera/caught feedback.
+- Full M4.4 league completed: 50 shifts per level, median scores 87 < 102 < 113, no flagged goal stalls. See docs/reports/bot-league-2026-11-07.md. Normal quota unchanged.
+- Current checks: 64 tests + 3 scene smokes. Staged 7-bot editor with eight pings renders at 115 draw calls (limit 120).
+- Human checks remain pending: M1.4 movement/cues, M2.5 new-player playtest, M3 Windows feel/audio review and Playtest #2 with bots. No observations have been invented.
+- Quota formula is an owner decision. Next implementation step: M5 Online, plan first. CI workflow is ../.github/workflows/godot-ci.yml.

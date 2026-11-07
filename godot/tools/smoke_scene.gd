@@ -37,6 +37,13 @@ func _run() -> void:
 	if not is_equal_approx(player.camera.rotation.x, player.pitch):
 		_fail("Reduce Motion must suppress camera kick")
 		return
+	player.reduce_motion = false
+	bus.publish([{"kind": &"caught", "player": 1}, {"kind": &"foam_fired", "player": 1}])
+	player.call("_process", 0.0)
+	var own_hud: ShiftHUD = scene.get_node("HUD")
+	if float(own_hud.get("_card_remaining")) > 0 or not is_equal_approx(player.camera.rotation.x, player.pitch):
+		_fail("Another intern's catch/weapon cue changed the local player's card or camera")
+		return
 	var input: PlayerInput = PlayerInput.new()
 	input.interact = true
 	for id: int in state.quota():
