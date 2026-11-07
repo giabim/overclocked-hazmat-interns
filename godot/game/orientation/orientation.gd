@@ -4,9 +4,7 @@ var state: OrientationState
 var settings_path: String = SettingsStore.PATH
 var _doors: Array[MeshInstance3D] = []
 var _canisters: CanisterViews
-var _slime: MeshInstance3D
-var _demo: Node3D
-var _hound: Node3D
+var _specimens: SpecimenViews
 var _hint: Label
 var _heading: Label
 var _skip: Button
@@ -35,13 +33,9 @@ func _ready() -> void:
 		_doors.append(_box(self, dimensions, Vector3(at.x, 1.35, at.y), LevelBuilder.AMBER))
 	var light_at: Vector2 = grid.cell_center(OrientationState.LIGHT_CELL)
 	_box(self, Vector3(1.7, 0.035, 1.7), Vector3(light_at.x, 0.02, light_at.y), LevelBuilder.COOLANT)
-	var slime_at: Vector2 = grid.cell_center(OrientationState.SLIME_CELL)
-	var blob: SphereMesh = SphereMesh.new()
-	blob.radius = 0.6
-	blob.height = 0.8
-	_slime = _part(self, blob, Vector3(slime_at.x, 0.4, slime_at.y), Color("7bd35a"))
-	_demo = _make_hound()
-	_hound = _make_hound()
+	_specimens = SpecimenViews.new()
+	add_child(_specimens)
+	_specimens.build(state.game)
 	var glass: MeshInstance3D = _box(self, Vector3(10, 2.4, 0.06), Vector3(9, 1.2, 21), Color(0.18, 0.77, 0.79, 0.18))
 	var material: StandardMaterial3D = glass.material_override
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -87,16 +81,6 @@ func _process(_delta: float) -> void:
 	_hint.text = state.hint()
 	_hint.text = _hint.text.replace("WASD", SettingsStore.movement_binding_text()).replace("E to", SettingsStore.binding_text("interact") + " to").replace("Click to", SettingsStore.binding_text("fire") + " to")
 	_skip.text = "SKIP / %s FOR CURSOR" % SettingsStore.binding_text("pause")
-	var slime_material: StandardMaterial3D = _slime.material_override
-	slime_material.albedo_color = LevelBuilder.COOLANT if state.foam_hits > 0 else Color("7bd35a")
-	_slime.scale.y = 0.45 if state.foam_hits == Tuning.CONTAIN_FREEZES else 1.0
-	var demo_at: Vector2 = state.demo_position()
-	_demo.position = Vector3(demo_at.x, 0, demo_at.y)
-	_hound.visible = state.demo_finished
-	_hound.position = Vector3(state.hound_position.x, 0, state.hound_position.y)
-	_hound.rotation.y = -state.hound_direction.angle()
-	var telegraph: bool = state.hound_phase == OrientationState.HoundPhase.WINDUP
-	_hound.scale = Vector3.ONE * (1.06 if telegraph and fmod(state.hound_timer, 0.16) < 0.08 else 1.0)
 
 
 func _build_ui() -> void:
@@ -173,17 +157,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F10:
 		settings_panel.open(self)
 		get_viewport().set_input_as_handled()
-
-
-func _make_hound() -> Node3D:
-	var hound: Node3D = Node3D.new()
-	add_child(hound)
-	_box(hound, Vector3(0.9, 0.4, 0.42), Vector3(0, 0.55, 0), Color("47545b"))
-	_box(hound, Vector3(0.28, 0.27, 0.3), Vector3(0.5, 0.69, 0), LevelBuilder.AMBER)
-	for x: float in [-0.3, 0.3]:
-		for z: float in [-0.16, 0.16]:
-			_box(hound, Vector3(0.1, 0.4, 0.1), Vector3(x, 0.2, z), Color("30383c"))
-	return hound
 
 
 func _box(parent: Node, size: Vector3, at: Vector3, color: Color) -> MeshInstance3D:

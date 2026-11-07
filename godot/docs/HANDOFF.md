@@ -13,6 +13,7 @@ Updated: 2026-11-07. Written by Claude. Read this file and `AGENTS.md` before wo
 | `3de5975` | M3.2–M3.4 sim: specimens, foam, grenades, caught rules |
 | `c7715a5` | This handoff file |
 | `5c3a27e` | M3.4–M3.5 views: specimens, den cages, grenades, caught card + arrows, positional audio, sweep blips, foam/grenade HUD |
+| next commits | Handoff update; M3 cohesion (Orientation uses real specimen records) |
 
 If the commits are not on GitHub yet, the owner applies them first (see §6).
 
@@ -63,7 +64,7 @@ Known flaky (also before M3): a scene smoke can rarely print "ObjectDB instances
 
 Done: M3.1–M3.5 (views: `game/specimens/specimen_views.gd`, `game/level/grenade_views.gd`, HUD card/arrows/overlay/tools line in `game/ui/hud.gd`, sweep blips in `game/ui/minimap.gd`).
 
-1. **M3 cohesion check:** Orientation R3/R4 should use real `SpecimenState` (R3: a sleeping slime that can't catch, foamed with `Hazards.try_foam`, contained → its pen closes → door opens; R4: hound demo). Keep Orientation safe and finishable; update `tests/test_orientation.gd` and `tools/smoke_orientation.gd`.
+1. Done: **M3 cohesion check** — Orientation R3 uses a real sleeping `SpecimenState` slime foamed with `Hazards.try_foam` (contain opens the door); R4's scripted demo/live hounds are mirrored into `SpecimenState` so `SpecimenViews` draws them like in a shift (the live hound waits in a closed pen until the demo ends). Shots: `docs/shots/M3_orientation_slime.png`, `M3_orientation_hound.png`.
 2. **👤 Owner checks:** play a shift — do the slime/hound feel fair? Is the caught card clear? Are the positional sounds audible on Windows? Record in `docs/playtests/`.
 3. **M2.5 (👤 owner):** 3–5 new players, record in `docs/playtests/01.md`, fix the top 3 problems. Never invent observations. M1.4 movement check is also still waiting for the owner.
 4. Then **M4 bots**: `sim/bot_brain.gd` makes a `PlayerInput` per bot; add bots to `GameState.players`; `Rules.advance` currently steps only `state.player`, so generalize it to step every player with its own input (keep `players[0]` as the human). Perception: LOS + hearing only.

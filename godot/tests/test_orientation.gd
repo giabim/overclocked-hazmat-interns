@@ -52,6 +52,8 @@ func test_light_delivery_and_three_foams_unlock_rooms_in_order() -> String:
 	input.yaw = PI
 	for _freeze: int in 3:
 		state.advance(input, Tuning.FOAM_COOLDOWN)
+	if state.slime.mode != SpecimenState.Mode.DEN or state.game.specimens.size() != 3:
+		return "The real training slime must be contained in its pen"
 	return "" if state.foam_hits == 3 and state.open_doors[2] else "Three aimed freezes must open the slime pen"
 
 
@@ -67,6 +69,11 @@ func test_hound_demo_precedes_safe_live_wall_stun() -> String:
 		state.advance(PlayerInput.new(), 1.0 / Tuning.TICK_RATE)
 	if not state.demo_finished or not state.open_doors[3] or state.game.finished():
 		return "Safe training hound must demonstrate a wall stun without catching the player"
+	if state.live_hound.mode == SpecimenState.Mode.DEN or state.live_hound.position == state.live_hound.den:
+		return "The live hound should leave its pen after the demo"
+	for specimen: SpecimenState in state.game.specimens:
+		if specimen.can_catch() and specimen.position.distance_to(state.game.player.position) < 0.5:
+			return "Training specimens must never reach the player"
 	return ""
 
 

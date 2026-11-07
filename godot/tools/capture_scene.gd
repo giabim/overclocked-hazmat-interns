@@ -23,6 +23,8 @@ func _capture() -> void:
 		state.phase = GameState.Phase.SUCCESS
 	if "--specimens" in OS.get_cmdline_user_args():
 		_stage_specimens(scene)
+	if training and ("--slime-pen" in OS.get_cmdline_user_args() or "--glass-hall" in OS.get_cmdline_user_args()):
+		_stage_training_room(scene, "--slime-pen" in OS.get_cmdline_user_args())
 	for _frame: int in 30:
 		await process_frame
 	if "--specimens" in OS.get_cmdline_user_args():
@@ -50,7 +52,7 @@ func _capture() -> void:
 	await RenderingServer.frame_post_draw
 	var calls: int = int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
 	DirAccess.make_dir_recursive_absolute("res://docs/shots")
-	var file: String = "M2_orientation.png" if training else ("M1_results.png" if "--results" in OS.get_cmdline_user_args() else "M1_play.png")
+	var file: String = ("M3_orientation_slime.png" if "--slime-pen" in OS.get_cmdline_user_args() else ("M3_orientation_hound.png" if "--glass-hall" in OS.get_cmdline_user_args() else "M2_orientation.png")) if training else ("M1_results.png" if "--results" in OS.get_cmdline_user_args() else "M1_play.png")
 	if "--fx" in OS.get_cmdline_user_args():
 		file = "M2_feedback.png"
 	if "--specimens" in OS.get_cmdline_user_args():
@@ -102,3 +104,21 @@ func _stage_specimen_hud(scene: Node) -> void:
 	var hud: ShiftHUD = scene.get_node("HUD")
 	hud.feedback(&"caught", {"specimen": &"hound", "how": &"dashed", "from_angle": -PI / 2.0})
 	hud.feedback(&"sensor_sweep", {"blips": [state.specimens[0].position, state.specimens[1].position] as Array[Vector2]})
+
+
+## M3 cohesion shots: the real training slime (R3) and the hound pens (R4).
+func _stage_training_room(scene: Node, slime_pen: bool) -> void:
+	var training: OrientationState = scene.get("state")
+	var player: PlayerView = scene.get_node("Player")
+	for index: int in 3:
+		training._unlock(index)
+	if slime_pen:
+		training.room = 2
+		training.game.player.teleport(Vector2(37, 18.5))
+		player.yaw = PI
+	else:
+		training.room = 3
+		training.game.player.teleport(Vector2(23, 23))
+		player.yaw = PI / 2.0
+	player.configure(training.game.grid, training.game.player.position)
+	player.yaw = PI if slime_pen else PI / 2.0
