@@ -10,3 +10,4 @@
 - 2026-11-06 — M1.2: Added shared substepped circle movement and tuning; 10,000 seeded moves, sliding, 10 m wall crossing, corners, and zero motion pass (9/9 total tests).
 - 2026-11-06 — M1.3: Batched lab walls, floor, door frames, airlock and wing markings; actual Compatibility render measures 18 draw calls (limit 40), screenshot reviewed; 10/10 tests pass.
 - 2026-11-06 — M1.4 implementation: Added first-person frame-rate mouse look, horizontal FOV, 30 Hz shared input/state movement and view interpolation; 12/12 tests pass. Human smoothness/map walkthrough remains pending.
+- 2026-11-06 — M1.5: Added pure authoritative canister/delivery/Heat/quota/extraction/results rules and batched canister views; timing, scoring, respawns, inventory and terminal states pass (20/20 tests).

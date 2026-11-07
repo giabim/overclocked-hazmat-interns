@@ -1,6 +1,8 @@
 extends Node3D
 
 var grid: MapGrid
+var state: GameState
+var canister_views: CanisterViews
 
 @onready var player: PlayerView = $Player
 @onready var debug_label: Label = $HUD/Debug
@@ -11,7 +13,13 @@ func _ready() -> void:
 	var level: LevelBuilder = LevelBuilder.new()
 	add_child(level)
 	level.build(grid)
-	player.configure(grid, grid.cell_center(grid.cells_of("P")[0]))
+	state = GameState.create(grid)
+	player.state = state.player
+	player.configure(grid, state.player.position)
+	canister_views = CanisterViews.new()
+	add_child(canister_views)
+	canister_views.build(state.canisters.size())
+	canister_views.sync(state)
 	var light: DirectionalLight3D = DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-65, -30, 0)
 	light.light_color = Color("ffdfb4")
@@ -29,8 +37,9 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	player.state.step(grid, player.read_input(), delta)
+	Rules.advance(state, player.read_input(), delta)
+	canister_views.sync(state)
 
 
 func _process(_delta: float) -> void:
-	debug_label.text = "LAB A   /   DRAW CALLS %d / 40" % int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	debug_label.text = "HEAT %.0f%%   /   COOLANT %d / %d   /   DRAW CALLS %d" % [state.heat, state.delivered, state.quota(), int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))]

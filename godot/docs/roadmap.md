@@ -22,7 +22,7 @@ Rough time is for part-time work (~10 h/week). Each milestone ends with a **cohe
 - [x] **M1.2** `sim/grid_move.gd` (§5.4), `sim/tuning.gd`. Tests: 10,000 random moves never end inside a wall; sliding along a wall keeps the parallel motion; a 10 m move in one call can't pass through a 2 m wall.
 - [x] **M1.3** `game/level/level_builder.gd`: builds floor, walls (MultiMesh), door frames and exit from the grid. Colors from `docs/art.md`. **Done:** draw calls ≤ 40 in the Lab A scene (show `Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)` in a debug label).
 - [ ] **M1.4** `game/player/player_view.gd`: first-person camera at 1.6 m, captured mouse, `Camera3D.keep_aspect = KEEP_WIDTH` with FOV setting, inputs → `sim` each tick, view interpolation. **Done:** 👤 You walk the whole map; it feels smooth; no camera lag.
-- [ ] **M1.5** `sim/game_state.gd` + `sim/rules.gd`: canisters, carry, deliver, Heat, quota, extraction, results. Tests: delivery lowers Heat by 6%; meltdown at 100%; quota formula.
+- [x] **M1.5** `sim/game_state.gd` + `sim/rules.gd`: canisters, carry, deliver, Heat, quota, extraction, results. Tests: delivery lowers Heat by 6%; meltdown at 100%; quota formula.
 - [ ] **M1.6** HUD: Heat bar, carry icon, count, minimap with wing colors and room codes. Results screen with "Play again".
 - [ ] **M1.7** Placeholder intern (primitives, human proportions, respirator, chest tank, number) + **silhouette gate** (§4.1). **Done:** `docs/shots/M1_silhouette.png`; 👤 You approve.
 - [ ] **Cohesion check:** a solo 4-minute shift with sounds for pickup, delivery and alarms.
