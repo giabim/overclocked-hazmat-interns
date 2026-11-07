@@ -27,7 +27,7 @@ var _last_yaw: float = -PI / 2.0
 
 static func create(grid: MapGrid) -> OrientationState:
 	var state: OrientationState = OrientationState.new()
-	state.game = GameState.create(grid)
+	state.game = GameState.create(grid, 1, 0, false)
 	state.hound_position = grid.cell_center(Vector2i(9, 12))
 	for cell: Vector2i in DOORS:
 		grid.set_blocked(cell, true)

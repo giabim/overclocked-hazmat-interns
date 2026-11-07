@@ -9,14 +9,20 @@ static func advance(state: GameState, input: PlayerInput, delta: float) -> void:
 		return
 	var old_phase: GameState.Phase = state.phase
 	state.elapsed += delta
-	state.player.step(state.grid, input, delta)
+	state.player.yaw = input.yaw
+	Hazards.tick_player_timers(state.player, delta)
+	if state.player.is_stunned():
+		state.player.hold()
+	else:
+		state.player.step(state.grid, input, delta)
 	for canister: CanisterState in state.canisters:
 		if canister.respawn_remaining > 0:
 			canister.respawn_remaining = maxf(0, canister.respawn_remaining - delta)
 			if canister.respawn_remaining <= 0:
 				_respawn(state, canister)
-	if input.interact:
+	if input.interact and not state.player.is_stunned():
 		_interact(state)
+	Hazards.advance(state, state.player, input, delta)
 	if state.phase == GameState.Phase.SHIFT:
 		var old_heat: float = state.heat
 		state.heat = minf(Tuning.MAX_HEAT, state.heat + delta * Tuning.MAX_HEAT / Tuning.SHIFT_SECONDS)
