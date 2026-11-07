@@ -11,6 +11,10 @@ func _run() -> void:
 	root.add_child(scene)
 	scene.set_physics_process(false)
 	await process_frame
+	var lobby_error: String = _exercise_lobby(scene)
+	if not lobby_error.is_empty():
+		_fail(lobby_error)
+		return
 	var state: GameState = scene.get("state")
 	var settings_error: String = _exercise_settings(scene)
 	if not settings_error.is_empty():
@@ -66,7 +70,7 @@ func _run() -> void:
 	if restarted == state or restarted.finished() or restarted.heat != 0 or restarted.delivered != 0 or results.visible:
 		_fail("Play Again did not reset the shift")
 		return
-	print("Scene smoke passed: settings, motion safety, pickup, delivery, extraction, results, restart")
+	print("Scene smoke passed: bot lobby, settings, motion safety, pickup, delivery, extraction, results, restart")
 	if not await SceneCleanup.dispose(self, scene):
 		quit(1)
 		return
@@ -120,3 +124,30 @@ func _exercise_settings(scene: Node) -> String:
 	SettingsStore.apply_values(scene, prior)
 	DirAccess.remove_absolute(path)
 	return "" if valid else "Settings UI must pause/resume, apply quality/FOV/audio/remaps, save and reset safely"
+
+
+func _exercise_lobby(scene: Node) -> String:
+	var hud: ShiftHUD = scene.get_node("HUD")
+	hud.set_bot_count(3)
+	hud.set_level_preset(1)
+	hud.call("_open_menu")
+	var edit: Button = hud.get("_per_bot_button")
+	edit.pressed.emit()
+	var levels: Array = hud.get("_bot_level_buttons")
+	levels[1].pressed.emit()
+	levels[2].pressed.emit()
+	levels[2].pressed.emit()
+	var valid: bool = hud.bot_levels() == [1, 2, 3]
+	var editor: Panel = hud.get("_bot_editor")
+	var ui: Control = hud.get("_root")
+	valid = valid and editor.visible and Rect2(Vector2.ZERO, ui.size).encloses(editor.get_rect())
+	editor.get_node("Done").pressed.emit()
+	var menu: Panel = hud.get("_menu")
+	menu.get_node("StartShift").pressed.emit()
+	var state: GameState = scene.get("state")
+	valid = valid and state.players.size() == 4
+	for index: int in range(1, state.brains.size()):
+		valid = valid and state.brains[index].level == index
+	hud.set_bot_count(0)
+	hud.call("_restart")
+	return "" if valid else "Per-bot lobby controls must start the chosen team through the real scene"

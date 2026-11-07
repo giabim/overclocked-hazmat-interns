@@ -29,7 +29,7 @@ Never invent playtest results. Reply in ≤ 10 lines.
 
 ## 2. Status
 
-- **Done:** M3.1–M3.5, M3 cohesion check, M4.1–M4.4.
+- **Implemented:** M3.1–M3.5, M3 cohesion check, M4.1–M4.4. The full M4.4 50-shift-per-level verification is running; keep its acceptance box unchecked until it finishes.
 - **Checks:** `./tools/check.sh` on Godot 4.7.2 (Linux headless) → **57/57 tests**, both scene smokes pass (~40 s).
 - **Review renders** (`docs/shots/`): `M3_specimens.png` (77 draw calls), `M3_orientation_slime.png`, `M3_orientation_hound.png`, `M4_bots.png` (7 bots, 93 draw calls; limit 120). Made with `xvfb-run -a .tools/godot --path . --rendering-method gl_compatibility --script res://tools/capture_scene.gd -- --capture --specimens` (or `--bots`, or `--orientation --slime-pen` / `--glass-hall`).
 - **Bot league:** default test (3 × 150 s shifts per level) passes. A 6 × 180 s run gave medians Lv1 68 < Lv2 78 < Lv3 85; catches per run: Lv1 178, Lv2 9, Lv3 1. The full `BOT_LEAGUE=1` run (50 × 240 s per level) was started but not finished.
@@ -61,7 +61,7 @@ Never invent playtest results. Reply in ≤ 10 lines.
 2. The hound aims during wind-up and locks direction 0.2 s before the dash, so a well-timed sidestep makes it hit a wall (stun 1.5 s).
 3. After a catch: player stunned 1 s, then immune 2.5 s; the slime ignores players 3 s, the hound becomes tired. A carried canister drops where the player stood.
 4. Grenades are picked up by walking onto a `G` crate.
-5. Bots: perception = sight (≤ 16 m, line of sight) or hearing (slime 8 m, hound 12 m; frozen specimens are silent). The lobby offers one level for all bots or "MIXED" (1, 2, 3, 1, …), not a separate level per bot.
+5. Bots: perception = sight (≤ 16 m, line of sight) or hearing (slime 8 m, hound 12 m; frozen specimens are silent). The lobby offers a team preset or "MIXED" (1, 2, 3, 1, …), plus per-bot overrides added by Codex on 2026-11-07.
 6. The shift is won when the human (players[0]) reaches the airlock during extraction; bots walk there too.
 7. Orientation stays catch-free: its slime sleeps, its hounds are scripted but drawn with the real specimen views.
 
@@ -77,7 +77,7 @@ Never invent playtest results. Reply in ≤ 10 lines.
 3. 👤 **M2.5 Playtest #1** (3–5 new players), then fix the top 3 problems. Never invent observations.
 4. **Quota balance** (§5) once the owner picks a formula. Add a test.
 5. Optional polish:
-   - [ ] Per-bot level buttons in the lobby.
+   - [x] Per-bot level buttons, preserved mixed preset, roster bounds, and real-scene team startup; 7-bot editor render is 113 draw calls.
    - [ ] Bots use ping.
    - [x] Fix flaky ObjectDB audio cleanup; 57 tests + 3 smokes pass.
 6. 👤 **Playtest #2:** solo + 3 bots at each level. Is Lv1 easy and Lv3 helpful without doing everything?

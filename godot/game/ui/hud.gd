@@ -36,8 +36,13 @@ var _state: GameState
 ## Lobby choice (M4.3): number of bots 0–7 and level 1–3, or 4 = mixed (1, 2, 3, 1, …).
 var bot_count: int = 0
 var bot_level: int = 2
+var bot_overrides: Dictionary = {}
 var _bots_label: Label
 var _level_button: Button
+var _per_bot_button: Button
+var _bot_editor: Panel
+var _bot_rows: Array[Control] = []
+var _bot_level_buttons: Array[Button] = []
 
 
 func _ready() -> void:
@@ -112,11 +117,14 @@ func _ready() -> void:
 	_bots_label = _label(_menu, "", Vector2(28, 126), Vector2(220, 30), 18)
 	_button(_menu, "-", Vector2(300, 122), Vector2(70, 38), func() -> void: _change_bots(-1))
 	_button(_menu, "+", Vector2(382, 122), Vector2(70, 38), func() -> void: _change_bots(1))
-	_level_button = _button(_menu, "", Vector2(28, 170), Vector2(424, 38), _cycle_level)
-	_button(_menu, "START SHIFT", Vector2(28, 230), Vector2(424, 48), _restart)
+	_level_button = _button(_menu, "", Vector2(28, 170), Vector2(296, 38), _cycle_level)
+	_per_bot_button = _button(_menu, "PER BOT", Vector2(336, 170), Vector2(116, 38), _open_bot_editor)
+	var start: Button = _button(_menu, "START SHIFT", Vector2(28, 230), Vector2(424, 48), _restart)
+	start.name = "StartShift"
 	_button(_menu, "SETTINGS", Vector2(28, 288), Vector2(424, 42), func() -> void: settings_requested.emit())
 	_button(_menu, "REPLAY ORIENTATION", Vector2(28, 338), Vector2(424, 42), func() -> void: orientation_requested.emit())
 	_menu_help = _label(_menu, "", Vector2(28, 398), Vector2(424, 56), 14)
+	_build_bot_editor()
 	_refresh_lobby()
 	_menu_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_menu.hide()
@@ -282,26 +290,87 @@ func _label(parent: Node, text: String, at: Vector2, dimensions: Vector2, font_s
 ## Levels for GameState.create: one entry per bot.
 func bot_levels() -> Array[int]:
 	var levels: Array[int] = []
-	for index: int in bot_count:
-		levels.append(index % 3 + 1 if bot_level == 4 else bot_level)
+	for index: int in clampi(bot_count, 0, Tuning.MAX_BOTS):
+		var base: int = index % 3 + 1 if bot_level == 4 else clampi(bot_level, 1, 3)
+		levels.append(clampi(bot_overrides.get(index, base), 1, 3))
 	return levels
 
 
+func set_bot_count(count: int) -> void:
+	bot_count = clampi(count, 0, Tuning.MAX_BOTS)
+	for index: int in bot_overrides.keys():
+		if index >= bot_count:
+			bot_overrides.erase(index)
+	if is_node_ready():
+		_refresh_lobby()
+
+
+func set_level_preset(level: int) -> void:
+	bot_level = clampi(level, 1, 4)
+	bot_overrides.clear()
+	if is_node_ready():
+		_refresh_lobby()
+
+
+func set_bot_level(index: int, level: int) -> void:
+	if index < 0 or index >= bot_count or index >= Tuning.MAX_BOTS:
+		return
+	bot_overrides[index] = clampi(level, 1, 3)
+	if is_node_ready():
+		_refresh_lobby()
+
+
 func _change_bots(step: int) -> void:
-	bot_count = clampi(bot_count + step, 0, Tuning.MAX_BOTS)
-	_refresh_lobby()
+	set_bot_count(bot_count + step)
 
 
 func _cycle_level() -> void:
-	bot_level = bot_level % 4 + 1
-	_refresh_lobby()
+	set_level_preset(bot_level % 4 + 1)
 
 
 func _refresh_lobby() -> void:
 	_bots_label.text = "BOTS  %d / %d" % [bot_count, Tuning.MAX_BOTS]
 	var names: Array[String] = ["LV1 TRAINEE", "LV2 TECHNICIAN", "LV3 SUPERVISOR", "MIXED LV1-3"]
-	_level_button.text = "BOT LEVEL: %s" % names[bot_level - 1]
+	_level_button.text = "TEAM: CUSTOM" if not bot_overrides.is_empty() else "TEAM: %s" % names[clampi(bot_level, 1, 4) - 1]
 	_level_button.disabled = bot_count == 0
+	_per_bot_button.disabled = bot_count == 0
+	var levels: Array[int] = bot_levels()
+	for index: int in _bot_rows.size():
+		_bot_rows[index].visible = index < levels.size()
+		if index < levels.size():
+			_bot_level_buttons[index].text = names[levels[index] - 1]
+
+
+func _build_bot_editor() -> void:
+	_bot_editor = _panel(_root, Vector2(-240, -224), Vector2(480, 448), Vector2(0.5, 0.5))
+	_bot_editor.mouse_filter = Control.MOUSE_FILTER_STOP
+	_label(_bot_editor, "BOT LEVELS", Vector2(28, 20), Vector2(424, 38), 28)
+	_label(_bot_editor, "Choose a level for each intern", Vector2(28, 62), Vector2(424, 24), 14)
+	for index: int in Tuning.MAX_BOTS:
+		var row: Control = Control.new()
+		_bot_editor.add_child(row)
+		row.position = Vector2(28, 92 + index * 40)
+		row.size = Vector2(424, 34)
+		_label(row, "INTERN %02d" % (index + 2), Vector2(0, 4), Vector2(140, 28), 18)
+		var level: Button = _button(row, "", Vector2(148, 0), Vector2(276, 34), func() -> void:
+			set_bot_level(index, bot_levels()[index] % 3 + 1)
+		)
+		_bot_rows.append(row)
+		_bot_level_buttons.append(level)
+	var done: Button = _button(_bot_editor, "DONE", Vector2(28, 392), Vector2(424, 38), _close_bot_editor)
+	done.name = "Done"
+	_bot_editor.hide()
+
+
+func _open_bot_editor() -> void:
+	_refresh_lobby()
+	_menu.hide()
+	_bot_editor.show()
+
+
+func _close_bot_editor() -> void:
+	_bot_editor.hide()
+	_menu.show()
 
 
 func _button(parent: Node, text: String, at: Vector2, dimensions: Vector2, callback: Callable) -> Button:

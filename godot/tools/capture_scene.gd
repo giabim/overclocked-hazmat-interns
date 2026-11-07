@@ -29,6 +29,12 @@ func _capture() -> void:
 		_stage_training_room(scene, "--slime-pen" in OS.get_cmdline_user_args())
 	for _frame: int in 30:
 		await process_frame
+	if "--bot-levels" in OS.get_cmdline_user_args():
+		var hud: ShiftHUD = scene.get_node("HUD")
+		hud.call("_open_menu")
+		hud.call("_open_bot_editor")
+		for _frame: int in 3:
+			await process_frame
 	if "--specimens" in OS.get_cmdline_user_args():
 		_stage_specimen_hud(scene)
 		for _frame: int in 2:
@@ -65,6 +71,8 @@ func _capture() -> void:
 		file = "M2_settings_controls.png" if "--controls" in OS.get_cmdline_user_args() else ("M2_settings_audio.png" if "--audio" in OS.get_cmdline_user_args() else "M2_settings.png")
 	if "--low-quality" in OS.get_cmdline_user_args() or "--high-quality" in OS.get_cmdline_user_args():
 		file = "M2_quality_low.png" if "--low-quality" in OS.get_cmdline_user_args() else "M2_quality_high.png"
+	if "--bot-levels" in OS.get_cmdline_user_args():
+		file = "M4_bot_levels.png"
 	var error: Error = root.get_texture().get_image().save_png("res://docs/shots/" + file)
 	print("Game render: %d draw calls; screenshot result %d" % [calls, error])
 	if "--settings" in OS.get_cmdline_user_args():
