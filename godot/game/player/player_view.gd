@@ -6,6 +6,7 @@ var grid: MapGrid
 var yaw: float = -PI / 2.0
 var pitch: float = 0.0
 var horizontal_fov: float = Tuning.DEFAULT_FOV
+var input_enabled: bool = true
 var _look_delta: Vector2 = Vector2.ZERO
 var _interact_queued: bool = false
 
@@ -29,7 +30,7 @@ func configure(map: MapGrid, spawn: Vector2) -> void:
 func read_input() -> PlayerInput:
 	var input: PlayerInput = PlayerInput.new()
 	input.yaw = yaw
-	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if input_enabled and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		input.move = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 		input.interact = _interact_queued
 		input.fire = Input.is_action_pressed("fire")
@@ -40,6 +41,8 @@ func read_input() -> PlayerInput:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not input_enabled:
+		return
 	if event.is_action_pressed("pause"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
 	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:

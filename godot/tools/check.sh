@@ -13,7 +13,7 @@ run_checked() {
     printf '%s\n' "$output" >&2
     return 1
   fi
-  grep -E 'tests passed' <<< "$output" || true
+  grep -E 'tests passed|Scene smoke passed' <<< "$output" || true
 }
 
 run_checked --import
@@ -22,3 +22,4 @@ while IFS= read -r -d '' script; do
 done < <(find . -type d \( -name .godot -o -name .tools -o -name build -o -name addons \) -prune \
   -o -type f -name '*.gd' -print0)
 run_checked --script res://tests/run_all.gd
+run_checked --script res://tools/smoke_scene.gd
