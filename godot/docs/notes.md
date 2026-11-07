@@ -7,3 +7,4 @@
 - Current checks: 64 tests + 3 scene smokes. Staged 7-bot editor with eight pings renders at 115 draw calls (limit 120).
 - Human checks remain pending: M1.4 movement/cues, M2.5 new-player playtest, M3 Windows feel/audio review and Playtest #2 with bots. No observations have been invented.
 - Quota formula is an owner decision. Next implementation step: M5 Online, plan first. CI workflow is ../.github/workflows/godot-ci.yml.
+- Startup now opens shift setup before gameplay, including after Orientation. Human Windows/bot review instructions are in docs/playtests/02.md.

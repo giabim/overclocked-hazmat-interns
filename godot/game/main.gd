@@ -66,6 +66,8 @@ func _ready() -> void:
 	SettingsStore.apply_values(self, SettingsStore.load_values())
 	if DisplayServer.get_name() != "headless" and not "--capture" in OS.get_cmdline_user_args() and not SettingsStore.orientation_finished():
 		get_tree().change_scene_to_file.call_deferred("res://game/orientation/orientation.tscn")
+	elif "--lobby" in OS.get_cmdline_user_args() or (DisplayServer.get_name() != "headless" and not "--capture" in OS.get_cmdline_user_args()):
+		hud.call("_open_menu")
 
 
 func _physics_process(delta: float) -> void:
@@ -109,6 +111,7 @@ func _restart() -> void:
 func _open_menu() -> void:
 	_menu_open = true
 	player.input_enabled = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _unhandled_input(event: InputEvent) -> void:

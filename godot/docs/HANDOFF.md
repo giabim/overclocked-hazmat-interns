@@ -103,3 +103,10 @@ git push origin godot-long-term
 - Game rules stay in `sim/` (no Nodes). Views only read state and events.
 - Keep draw calls ≤ 120 (bots are merged meshes for this reason).
 - Art stays "not Among Us" (`docs/art.md`). No dark patterns.
+
+## 9. Codex follow-up (2026-11-07)
+
+- Bundle imported and pushed; all optional polish in section 6 is implemented. Current local checks: 64 tests + 3 scene smokes.
+- Full league completed (50 shifts per level): 87 < 102 < 113. See docs/reports/bot-league-2026-11-07.md.
+- Startup opens shift setup after Orientation; START SHIFT begins the clock. Per-bot levels and team pings are ready. See docs/playtests/02.md for the still-pending human review.
+- Next non-human implementation item is M5 Online: plan first. Quota formula and all human acceptance items remain pending.

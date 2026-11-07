@@ -51,6 +51,7 @@ Rough time is for part-time work (~10 h/week). Each milestone ends with a **cohe
 - [x] **M4.P1** Handoff polish: deterministic audio shutdown and active/paused/overlapping/positional audio smoke regression.
 - [x] **M4.P2** Handoff polish: per-bot lobby levels, team presets, roster bounds and startup integration; 7-bot editor is 113 draw calls.
 - [x] **M4.P3** Handoff polish: fair, rate-limited team pings and actor-scoped feedback; eight-ping/7-bot editor stays within budget (115 draw calls).
+- [x] **M4.P4** Open shift setup after Orientation and on later desktop launches; stop the shift clock until START SHIFT. Startup smoke and GPU capture verified.
 - [ ] 👤 **Playtest #2:** solo with 3 bots at each level. Is Lv1 easy, Lv3 helpful but not doing everything?
 
 ### M5 — Online foundation (ask Codex to **plan first**, effort high)

@@ -11,6 +11,13 @@ func _run() -> void:
 	root.add_child(scene)
 	scene.set_physics_process(false)
 	await process_frame
+	if "--lobby" in OS.get_cmdline_user_args():
+		var startup_hud: ShiftHUD = scene.get_node("HUD")
+		var initial: GameState = scene.get("state")
+		scene.call("_physics_process", 1.0)
+		if not startup_hud.modal_open() or initial.elapsed != 0 or Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+			_fail("Startup lobby must be visible and keep the shift clock stopped")
+			return
 	var lobby_error: String = _exercise_lobby(scene)
 	if not lobby_error.is_empty():
 		_fail(lobby_error)
@@ -77,7 +84,7 @@ func _run() -> void:
 	if restarted == state or restarted.finished() or restarted.heat != 0 or restarted.delivered != 0 or results.visible:
 		_fail("Play Again did not reset the shift")
 		return
-	print("Scene smoke passed: bot lobby, settings, motion safety, pickup, delivery, extraction, results, restart")
+	print("Scene smoke passed: startup/bot lobby, settings, motion safety, pickup, delivery, extraction, results, restart")
 	if not await SceneCleanup.dispose(self, scene):
 		quit(1)
 		return

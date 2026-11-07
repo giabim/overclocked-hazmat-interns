@@ -83,6 +83,8 @@ func _capture() -> void:
 		file = "M4_bot_levels.png"
 	if "--pings" in OS.get_cmdline_user_args():
 		file = "M4_team_pings.png"
+	if "--lobby" in OS.get_cmdline_user_args():
+		file = "M4_startup_lobby.png"
 	var error: Error = root.get_texture().get_image().save_png("res://docs/shots/" + file)
 	print("Game render: %d draw calls; screenshot result %d" % [calls, error])
 	if "--settings" in OS.get_cmdline_user_args():
