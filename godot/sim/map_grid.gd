@@ -6,6 +6,8 @@ var width: int = 0
 var height: int = 0
 var _rows: PackedStringArray = PackedStringArray()
 var _blocked: Dictionary = {}
+## Bumped whenever a cell is blocked or unblocked, so cached flow fields can be rebuilt.
+var version: int = 0
 
 
 static func from_text(text: String) -> MapGrid:
@@ -36,6 +38,7 @@ func is_wall(cx: int, cy: int) -> bool:
 
 
 func set_blocked(at: Vector2i, blocked: bool) -> void:
+	version += 1
 	if blocked:
 		_blocked[at] = true
 	else:

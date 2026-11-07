@@ -11,9 +11,14 @@ var specimens: Array[SpecimenState] = []
 var grenade_pickups: Array[GrenadePickup] = []
 var thrown_grenades: Array[ThrownGrenade] = []
 var contained: int = 0
+## Custom shifts and tests can set a fixed quota (0 = normal formula).
+var quota_override: int = 0
 var sweep_elapsed: float = 0.0
-## Flow fields toward a cell, rebuilt each tick on demand (key: Vector2i target cell).
+## Flow fields toward a cell (key: Vector2i target cell), kept until the grid changes.
 var field_cache: Dictionary = {}
+var _field_version: int = -1
+## One entry per player: null for a human, a BotBrain for a bot (M4).
+var brains: Array[BotBrain] = []
 var canisters: Array[CanisterState] = []
 var events: Array[Dictionary] = []
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -27,13 +32,26 @@ var extraction_remaining: float = Tuning.EXTRACTION_SECONDS
 var failure_reason: String = ""
 
 
-static func create(map: MapGrid, count: int = 1, seed_value: int = 0, spawn_specimens: bool = true) -> GameState:
+static func create(
+	map: MapGrid, count: int = 1, seed_value: int = 0, spawn_specimens: bool = true,
+	bot_levels: Array[int] = []
+) -> GameState:
 	var state: GameState = GameState.new()
 	state.grid = map
-	state.participants = clampi(count, 1, Tuning.MAX_PARTICIPANTS)
+	var bots: int = mini(bot_levels.size(), Tuning.MAX_PARTICIPANTS - 1)
+	state.participants = clampi(maxi(count, 1 + bots), 1, Tuning.MAX_PARTICIPANTS)
 	state.rng.seed = seed_value
-	state.player.teleport(map.cell_center(map.cells_of("P")[0]))
+	var spawns: Array[Vector2i] = map.cells_of("P")
+	state.player.teleport(map.cell_center(spawns[0]))
 	state.players.append(state.player)
+	state.brains.append(null)
+	for index: int in bots:
+		var bot: PlayerState = PlayerState.new()
+		bot.id = index + 1
+		bot.yaw = -PI / 2.0
+		bot.teleport(map.cell_center(spawns[(index + 1) % spawns.size()]))
+		state.players.append(bot)
+		state.brains.append(BotBrain.create(bot_levels[index], state.rng.randi()))
 	for cell: Vector2i in map.cells_of("C"):
 		var canister: CanisterState = CanisterState.new()
 		canister.id = state.canisters.size()
@@ -50,7 +68,7 @@ static func create(map: MapGrid, count: int = 1, seed_value: int = 0, spawn_spec
 
 
 func quota() -> int:
-	return Tuning.BASE_QUOTA + participants
+	return quota_override if quota_override > 0 else Tuning.BASE_QUOTA + participants
 
 
 func specimen_count() -> int:
@@ -58,6 +76,9 @@ func specimen_count() -> int:
 
 
 func field_to(cell: Vector2i) -> FlowField:
+	if _field_version != grid.version:
+		field_cache.clear()
+		_field_version = grid.version
 	if not field_cache.has(cell):
 		field_cache[cell] = FlowField.build(grid, [cell])
 	return field_cache[cell]

@@ -3,26 +3,35 @@ extends RefCounted
 ## Authoritative shift rules. No Nodes, rendering, clocks or input APIs.
 
 
+## `input` drives players[0] (the local human). Bots (state.brains) make their own inputs.
 static func advance(state: GameState, input: PlayerInput, delta: float) -> void:
 	state.events.clear()
 	if state.finished():
 		return
 	var old_phase: GameState.Phase = state.phase
 	state.elapsed += delta
-	state.player.yaw = input.yaw
-	Hazards.tick_player_timers(state.player, delta)
-	if state.player.is_stunned():
-		state.player.hold()
-	else:
-		state.player.step(state.grid, input, delta)
+	var inputs: Array[PlayerInput] = []
+	for index: int in state.players.size():
+		var brain: BotBrain = state.brains[index] if index < state.brains.size() else null
+		inputs.append(input if brain == null else brain.think(state, state.players[index], delta))
+	for index: int in state.players.size():
+		var player: PlayerState = state.players[index]
+		player.yaw = inputs[index].yaw
+		Hazards.tick_player_timers(player, delta)
+		if player.is_stunned():
+			player.hold()
+		else:
+			player.step(state.grid, inputs[index], delta)
 	for canister: CanisterState in state.canisters:
 		if canister.respawn_remaining > 0:
 			canister.respawn_remaining = maxf(0, canister.respawn_remaining - delta)
 			if canister.respawn_remaining <= 0:
 				_respawn(state, canister)
-	if input.interact and not state.player.is_stunned():
-		_interact(state)
-	Hazards.advance(state, state.player, input, delta)
+	for index: int in state.players.size():
+		if inputs[index].interact and not state.players[index].is_stunned():
+			_interact(state, state.players[index])
+		Hazards.player_actions(state, state.players[index], inputs[index])
+	Hazards.world_step(state, delta)
 	if state.phase == GameState.Phase.SHIFT:
 		var old_heat: float = state.heat
 		state.heat = minf(Tuning.MAX_HEAT, state.heat + delta * Tuning.MAX_HEAT / Tuning.SHIFT_SECONDS)
@@ -40,34 +49,37 @@ static func advance(state: GameState, input: PlayerInput, delta: float) -> void:
 			state.events.append({"kind": &"success"})
 
 
-static func at_airlock(state: GameState) -> bool:
-	return state.player.position.distance_to(nearest_airlock(state)) <= Tuning.INTERACT_RANGE
+## Defaults to the local player (players[0]).
+static func at_airlock(state: GameState, who: PlayerState = null) -> bool:
+	var player: PlayerState = state.player if who == null else who
+	return player.position.distance_to(nearest_airlock(state, player)) <= Tuning.INTERACT_RANGE
 
 
-static func nearest_airlock(state: GameState) -> Vector2:
+static func nearest_airlock(state: GameState, who: PlayerState = null) -> Vector2:
+	var player: PlayerState = state.player if who == null else who
 	var nearest: Vector2 = Vector2(INF, INF)
 	var distance: float = INF
 	for cell: Vector2i in state.grid.cells_of("E"):
 		var candidate: Vector2 = state.grid.cell_center(cell)
-		var current: float = state.player.position.distance_squared_to(candidate)
+		var current: float = player.position.distance_squared_to(candidate)
 		if current < distance:
 			nearest = candidate
 			distance = current
 	return nearest
 
 
-static func _interact(state: GameState) -> void:
+static func _interact(state: GameState, player: PlayerState) -> void:
 	if state.phase != GameState.Phase.SHIFT:
 		return
-	if state.player.carrying >= 0:
-		if at_airlock(state):
-			var canister: CanisterState = state.canisters[state.player.carrying]
+	if player.carrying >= 0:
+		if at_airlock(state, player):
+			var canister: CanisterState = state.canisters[player.carrying]
 			canister.respawn_remaining = Tuning.CANISTER_RESPAWN_SECONDS
-			state.player.carrying = -1
+			player.carrying = -1
 			state.delivered += 1
 			state.score += Tuning.DELIVERY_SCORE
 			state.heat = maxf(0, state.heat - Tuning.DELIVERY_COOLING)
-			state.events.append({"kind": &"delivery", "id": canister.id, "position": nearest_airlock(state)})
+			state.events.append({"kind": &"delivery", "id": canister.id, "player": player.id, "position": nearest_airlock(state, player)})
 			if state.delivered >= state.quota():
 				state.phase = GameState.Phase.EXTRACTION
 				state.events.append({"kind": &"extraction"})
@@ -75,14 +87,14 @@ static func _interact(state: GameState) -> void:
 	var nearest: CanisterState = null
 	var distance: float = Tuning.INTERACT_RANGE
 	for canister: CanisterState in state.canisters:
-		var candidate: float = state.player.position.distance_to(canister.position)
+		var candidate: float = player.position.distance_to(canister.position)
 		if canister.available and candidate <= distance:
 			nearest = canister
 			distance = candidate
 	if nearest != null:
 		nearest.available = false
-		state.player.carrying = nearest.id
-		state.events.append({"kind": &"pickup", "id": nearest.id, "position": nearest.position})
+		player.carrying = nearest.id
+		state.events.append({"kind": &"pickup", "id": nearest.id, "player": player.id, "position": nearest.position})
 
 
 static func _respawn(state: GameState, canister: CanisterState) -> void:

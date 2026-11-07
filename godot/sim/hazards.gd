@@ -17,14 +17,19 @@ static func tick_player_timers(player: PlayerState, delta: float) -> void:
 		player.foam_charges += 1
 
 
-static func advance(state: GameState, player: PlayerState, input: PlayerInput, delta: float) -> void:
-	state.field_cache.clear()
-	_grenade_pickups(state, player, delta)
+## One player's tool use this tick (pickup, foam, grenade).
+static func player_actions(state: GameState, player: PlayerState, input: PlayerInput) -> void:
+	_grenade_pickup(state, player)
 	if not player.is_stunned():
 		if input.fire:
 			try_foam(state, player)
 		if input.throw_grenade:
 			try_throw(state, player)
+
+
+## Everything that happens once per tick: crates, fuses, specimens, catches, sweeps.
+static func world_step(state: GameState, delta: float) -> void:
+	_grenade_respawns(state, delta)
 	_fuses(state, delta)
 	for specimen: SpecimenState in state.specimens:
 		SpecimenAI.step(state, specimen, delta)
@@ -96,19 +101,25 @@ static func freeze(state: GameState, specimen: SpecimenState, seconds: float) ->
 	specimen.set_mode(SpecimenState.Mode.FROZEN, maxf(remaining, seconds))
 
 
-static func _grenade_pickups(state: GameState, player: PlayerState, delta: float) -> void:
+static func _grenade_respawns(state: GameState, delta: float) -> void:
 	for pickup: GrenadePickup in state.grenade_pickups:
 		if not pickup.available:
 			pickup.respawn_remaining = maxf(0.0, pickup.respawn_remaining - delta)
 			if pickup.respawn_remaining <= 0.0:
 				pickup.available = true
 				state.events.append({"kind": &"grenade_respawn", "id": pickup.id, "position": pickup.position})
-		elif not player.has_grenade and not player.is_stunned() \
-				and player.position.distance_to(pickup.position) <= Tuning.GRENADE_PICKUP_RANGE:
+
+
+static func _grenade_pickup(state: GameState, player: PlayerState) -> void:
+	if player.has_grenade or player.is_stunned():
+		return
+	for pickup: GrenadePickup in state.grenade_pickups:
+		if pickup.available and player.position.distance_to(pickup.position) <= Tuning.GRENADE_PICKUP_RANGE:
 			pickup.available = false
 			pickup.respawn_remaining = Tuning.GRENADE_RESPAWN_SECONDS
 			player.has_grenade = true
-			state.events.append({"kind": &"grenade_pickup", "id": pickup.id, "position": pickup.position})
+			state.events.append({"kind": &"grenade_pickup", "id": pickup.id, "player": player.id, "position": pickup.position})
+			return
 
 
 static func _fuses(state: GameState, delta: float) -> void:

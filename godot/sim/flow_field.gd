@@ -9,7 +9,8 @@ var grid: MapGrid
 var _distance: PackedInt32Array = PackedInt32Array()
 
 
-static func build(map: MapGrid, targets: Array[Vector2i]) -> FlowField:
+## `avoid` cells (Vector2i keys) are treated like walls, e.g. cells next to a specimen.
+static func build(map: MapGrid, targets: Array[Vector2i], avoid: Dictionary = {}) -> FlowField:
 	var field: FlowField = FlowField.new()
 	field.grid = map
 	field._distance.resize(map.width * map.height)
@@ -26,7 +27,7 @@ static func build(map: MapGrid, targets: Array[Vector2i]) -> FlowField:
 		var next_distance: int = field.distance(current) + 1
 		for offset: Vector2i in NEIGHBOURS:
 			var next: Vector2i = current + offset
-			if field._inside(next) and not map.is_wall(next.x, next.y) and field.distance(next) == UNREACHABLE:
+			if field._inside(next) and not map.is_wall(next.x, next.y) and not avoid.has(next) and field.distance(next) == UNREACHABLE:
 				field._distance[field._index(next)] = next_distance
 				queue.append(next)
 	return field
