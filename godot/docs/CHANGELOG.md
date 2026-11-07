@@ -19,3 +19,4 @@
 - 2026-11-06 — M2.3: Added airlock steam, hound sparks, bounded cosmetic camera kick and Reduce Motion suppression; corrected cue tinting. Runtime checks prove aiming/sim state remain unchanged; 26 tests and scene smokes pass.
 - 2026-11-06 — M2.4: Added F10 settings with live remaps/prompts, sensitivity/invert, horizontal FOV, off-by-default head bob, Reduce Motion, foam hold/toggle, subtitles, volumes and Low/Medium/High tiers. Saved settings preserve orientation progress; 29 tests and both scene smokes pass; all settings tabs and Low/High GPU renders verified.
 - 2026-11-06 — M2.5 preparation: Added anonymous 3-5 player observation sheet and ranked-fix/retest protocol. Human playtest not yet run; M2.5 remains unchecked.
+- 2026-11-07 — M3.1: Added grid line of sight (blocks diagonal corner gaps), free-distance probe and BFS flow field; every Lab A cell descends to the airlock and a slime-sized circle follows it without sticking (35/35 tests).

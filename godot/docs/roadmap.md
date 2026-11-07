@@ -35,7 +35,7 @@ Rough time is for part-time work (~10 h/week). Each milestone ends with a **cohe
 - [ ] **M2.5** 👤 **Playtest #1:** 3–5 new players, no explanation. Write down where they get stuck in `docs/playtests/01.md`. Fix the top 3 problems before M3.
 
 ### M3 — Specimens and tools (offline)
-- [ ] **M3.1** `sim/grid_los.gd` (grid ray march) + `sim/flow_field.gd` (BFS distance field to targets). Tests: LOS blocked by walls; flow field leads from every cell to the target.
+- [x] **M3.1** `sim/grid_los.gd` (grid ray march) + `sim/flow_field.gd` (BFS distance field to targets). Tests: LOS blocked by walls; flow field leads from every cell to the target.
 - [ ] **M3.2** `sim/specimen.gd`: states Den → Patrol → Chase → (Hound: WindUp → Dash → Tired) → Frozen → Patrol; hound wall stun 1.5 s (§3.7). Numbers from §3.4.
 - [ ] **M3.3** Foam sprayer (cone, charges, cooldown, freeze, contain 3-in-12 s) and freeze grenade (throw, fuse, radius, respawn).
 - [ ] **M3.4** Caught rule (drop, stun, immunity) + "why you got caught" card + direction arrow.
