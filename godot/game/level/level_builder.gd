@@ -9,7 +9,7 @@ const COOLANT: Color = Color("2ec4c9")
 const WING_COLORS: Array[Color] = [COOLANT, AMBER, Color("ff5a1f"), Color("7bd35a")]
 
 
-func build(grid: MapGrid) -> void:
+func build(grid: MapGrid, include_signage: bool = true) -> void:
 	for child: Node in get_children():
 		child.free()
 	var walls: Array[Transform3D] = []
@@ -44,6 +44,8 @@ func build(grid: MapGrid) -> void:
 		var transforms: Array[Transform3D] = []
 		transforms.assign(strips[wing])
 		_batch("Wing%d" % wing, transforms, WING_COLORS[wing])
+	if not include_signage:
+		return
 	var labels: Array[String] = ["WEST / W-01", "EAST / E-01", "NORTH / N-01", "SOUTH / S-01"]
 	var cells: Array[Vector2i] = [Vector2i(3, 3), Vector2i(20, 3), Vector2i(12, 1), Vector2i(12, 13)]
 	for index: int in labels.size():

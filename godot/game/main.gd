@@ -43,6 +43,8 @@ func _ready() -> void:
 	environment.ambient_light_energy = 0.65
 	world.environment = environment
 	add_child(world)
+	if DisplayServer.get_name() != "headless" and not "--capture" in OS.get_cmdline_user_args() and not SettingsStore.orientation_finished():
+		get_tree().change_scene_to_file.call_deferred("res://game/orientation/orientation.tscn")
 
 
 func _physics_process(delta: float) -> void:

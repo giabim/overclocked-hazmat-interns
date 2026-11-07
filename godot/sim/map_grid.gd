@@ -5,6 +5,7 @@ extends RefCounted
 var width: int = 0
 var height: int = 0
 var _rows: PackedStringArray = PackedStringArray()
+var _blocked: Dictionary = {}
 
 
 static func from_text(text: String) -> MapGrid:
@@ -31,7 +32,14 @@ func cell(cx: int, cy: int) -> String:
 
 
 func is_wall(cx: int, cy: int) -> bool:
-	return cell(cx, cy) == "#"
+	return cell(cx, cy) == "#" or _blocked.has(Vector2i(cx, cy))
+
+
+func set_blocked(at: Vector2i, blocked: bool) -> void:
+	if blocked:
+		_blocked[at] = true
+	else:
+		_blocked.erase(at)
 
 
 func cells_of(symbol: String) -> Array[Vector2i]:

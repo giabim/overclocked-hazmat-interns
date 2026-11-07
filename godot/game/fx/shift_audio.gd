@@ -17,6 +17,12 @@ func _ready() -> void:
 	_clips[&"success"] = _make_clip(0.7, 440, 880, false)
 	_clips[&"failure"] = _make_clip(0.7, 240, 90, false)
 	_clips[&"extraction"] = _make_clip(0.3, 520, 1040, false)
+	_clips[&"foam_fired"] = _make_clip(0.18, 220, 110, true)
+	_clips[&"foam_hit"] = _make_clip(0.16, 940, 580, true)
+	_clips[&"contained"] = _make_clip(0.4, 440, 1040, false)
+	_clips[&"door_open"] = _make_clip(0.16, 480, 720, false)
+	_clips[&"hound_windup"] = _make_clip(Tuning.HOUND_WINDUP_SECONDS, 700, 1500, true)
+	_clips[&"hound_wall_stun"] = _make_clip(0.25, 300, 100, true)
 
 
 func play_event(kind: StringName) -> void:

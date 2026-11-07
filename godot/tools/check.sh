@@ -23,3 +23,4 @@ done < <(find . -type d \( -name .godot -o -name .tools -o -name build -o -name 
   -o -type f -name '*.gd' -print0)
 run_checked --script res://tests/run_all.gd
 run_checked --script res://tools/smoke_scene.gd
+run_checked --script res://tools/smoke_orientation.gd
