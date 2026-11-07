@@ -7,6 +7,8 @@ var yaw: float = -PI / 2.0
 var pitch: float = 0.0
 var horizontal_fov: float = Tuning.DEFAULT_FOV
 var input_enabled: bool = true
+var reduce_motion: bool = false
+var _camera_kick: float = 0
 var _look_delta: Vector2 = Vector2.ZERO
 var _interact_queued: bool = false
 
@@ -57,12 +59,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	yaw -= _look_delta.x * Tuning.MOUSE_SENSITIVITY
 	pitch = clampf(pitch - _look_delta.y * Tuning.MOUSE_SENSITIVITY, -Tuning.MAX_LOOK_PITCH, Tuning.MAX_LOOK_PITCH)
 	_look_delta = Vector2.ZERO
 	rotation.y = yaw
-	camera.rotation.x = pitch
+	if reduce_motion:
+		_camera_kick = 0
+	camera.rotation.x = clampf(pitch + _camera_kick, -Tuning.MAX_LOOK_PITCH, Tuning.MAX_LOOK_PITCH)
+	_camera_kick = move_toward(_camera_kick, 0, deg_to_rad(Tuning.CAMERA_KICK_DECAY) * delta)
 	var at: Vector2 = state.previous_position.lerp(state.position, Engine.get_physics_interpolation_fraction())
 	position = Vector3(at.x, 0, at.y)
 
@@ -71,3 +76,8 @@ func set_horizontal_fov(value: float) -> void:
 	horizontal_fov = clampf(value, Tuning.MIN_FOV, Tuning.MAX_FOV)
 	if is_instance_valid(camera):
 		camera.fov = horizontal_fov
+
+
+func add_camera_kick(degrees: float) -> void:
+	if not reduce_motion:
+		_camera_kick = clampf(_camera_kick + deg_to_rad(degrees), 0, deg_to_rad(Tuning.MAX_CAMERA_KICK_DEGREES))

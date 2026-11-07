@@ -36,3 +36,5 @@ const HOUND_DASH_SECONDS: float = 0.5
 const HOUND_DASH_SPEED: float = 8.8
 const HOUND_TIRED_SECONDS: float = 2.0
 const HOUND_WALL_STUN_SECONDS: float = 1.5
+const MAX_CAMERA_KICK_DEGREES: float = 0.5
+const CAMERA_KICK_DECAY: float = 3.0

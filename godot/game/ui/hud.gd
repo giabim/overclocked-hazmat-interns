@@ -48,10 +48,12 @@ func _ready() -> void:
 	var inventory: Panel = _panel(_root, Vector2(28, -108), Vector2(340, 80), Vector2(0, 1))
 	_count = _label(inventory, "COOLANT  0 / 3", Vector2(16, 10), Vector2(320, 26), 22)
 	_carry = _label(inventory, "[ ] EMPTY HANDS", Vector2(16, 44), Vector2(320, 24), 14)
+	_carry.add_theme_color_override("font_color", Color.WHITE)
 	_prompt = _label(_root, "", Vector2(-250, -94), Vector2(500, 28), 17, Vector2(0.5, 1))
 	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_flash = _label(_root, "", Vector2(-300, 110), Vector2(600, 40), 22, Vector2(0.5, 0))
 	_flash.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_flash.add_theme_color_override("font_color", Color.WHITE)
 	var crosshair: Label = _label(_root, "+", Vector2(-10, -15), Vector2(20, 30), 20, Vector2(0.5, 0.5))
 	crosshair.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_results = _panel(_root, Vector2(-240, -176), Vector2(480, 352), Vector2(0.5, 0.5))

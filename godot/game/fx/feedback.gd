@@ -29,14 +29,23 @@ func _on_fx(kind: StringName, data: Dictionary) -> void:
 	_audio.play_event(kind)
 	if hud != null:
 		hud.feedback(kind)
+	if player != null and kind in [&"foam_fired", &"delivery", &"contained"]:
+		player.add_camera_kick(0.35)
 	if DisplayServer.get_name() == "headless":
 		return
 	var at: Vector3 = data.get("position", Vector3.ZERO)
 	match kind:
 		&"pickup":
 			_burst(at, LevelBuilder.AMBER, 12, 0.25)
-		&"delivery", &"contained":
+		&"delivery":
 			_burst(at, LevelBuilder.COOLANT, 32, 0.55)
+			_burst(at, Color(0.8, 0.9, 0.9, 0.25), 18, 1.2, Vector3.UP, 20, 0.22)
+		&"contained":
+			_burst(at, LevelBuilder.COOLANT, 40, 0.6)
+		&"hound_windup":
+			_burst(at, LevelBuilder.AMBER, 24, Tuning.HOUND_WINDUP_SECONDS, Vector3.UP, 130)
+		&"hound_wall_stun":
+			_burst(at, Color.WHITE, 18, 0.3)
 		&"foam_hit":
 			_burst(at, LevelBuilder.COOLANT.lightened(0.5), 20, 0.35)
 		&"foam_miss":
@@ -47,14 +56,14 @@ func _on_fx(kind: StringName, data: Dictionary) -> void:
 				_burst(player.camera.global_position + direction * 0.6, LevelBuilder.COOLANT.lightened(0.6), 16, 0.22, direction, 15)
 
 
-func _burst(at: Vector3, color: Color, amount: int, lifetime: float, direction: Vector3 = Vector3.UP, spread: float = 65) -> void:
+func _burst(at: Vector3, color: Color, amount: int, lifetime: float, direction: Vector3 = Vector3.UP, spread: float = 65, size: float = 0.06) -> void:
 	var material: StandardMaterial3D = StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.vertex_color_use_as_albedo = true
 	var mesh: QuadMesh = QuadMesh.new()
-	mesh.size = Vector2(0.06, 0.06)
+	mesh.size = Vector2(size, size)
 	mesh.material = material
 	var particles: CPUParticles3D = CPUParticles3D.new()
 	particles.mesh = mesh

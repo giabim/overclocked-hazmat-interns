@@ -12,6 +12,23 @@ func _run() -> void:
 	scene.set_physics_process(false)
 	await process_frame
 	var state: GameState = scene.get("state")
+	var player: PlayerView = scene.get_node("Player")
+	var bus: Feedback = scene.get("feedback_bus")
+	var before: Vector2 = state.player.position
+	var yaw: float = player.yaw
+	player.reduce_motion = false
+	bus.publish([{"kind": &"foam_fired"}])
+	player.call("_process", 0.0)
+	var kick: float = absf(player.camera.rotation.x - player.pitch)
+	if kick <= 0 or kick > deg_to_rad(Tuning.MAX_CAMERA_KICK_DEGREES) or player.yaw != yaw or state.player.position != before:
+		_fail("Camera feedback must be bounded and cosmetic")
+		return
+	player.reduce_motion = true
+	bus.publish([{"kind": &"foam_fired"}])
+	player.call("_process", 0.0)
+	if not is_equal_approx(player.camera.rotation.x, player.pitch):
+		_fail("Reduce Motion must suppress camera kick")
+		return
 	var input: PlayerInput = PlayerInput.new()
 	input.interact = true
 	for id: int in state.quota():
@@ -45,7 +62,7 @@ func _run() -> void:
 	if restarted == state or restarted.finished() or restarted.heat != 0 or restarted.delivered != 0 or results.visible:
 		_fail("Play Again did not reset the shift")
 		return
-	print("Scene smoke passed: pickup, delivery, extraction, results, restart")
+	print("Scene smoke passed: motion safety, pickup, delivery, extraction, results, restart")
 	scene.queue_free()
 	await process_frame
 	# Allow the audio thread to release queued playback before the fast headless exit.

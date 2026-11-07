@@ -16,3 +16,4 @@
 - 2026-11-06 — M1.7: Owner approved silhouette. Movement/cue feedback deferred by owner request to keep implementing; manual checks remain unchecked.
 - 2026-11-06 — M2.1: Added four safe orientation rooms, sequential gates, foam/hound training fakes, idle-8s hints, visible Skip and preserved settings progress. 25 tests and both running-scene smoke tests pass.
 - 2026-11-06 — M2.2: Unified HUD, synthesized audio and Compatibility particles under one typed feedback bus; sim events remain immutable and positional; 26 tests, both scene smokes and FX render pass.
+- 2026-11-06 — M2.3: Added airlock steam, hound sparks, bounded cosmetic camera kick and Reduce Motion suppression; corrected cue tinting. Runtime checks prove aiming/sim state remain unchanged; 26 tests and scene smokes pass.
