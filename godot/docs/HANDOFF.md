@@ -13,13 +13,14 @@ Updated: 2026-11-07. Written by Claude. Read this file and `AGENTS.md` before wo
 | `3de5975` | M3.2–M3.4 sim: specimens, foam, grenades, caught rules |
 | `c7715a5` | This handoff file |
 | `5c3a27e` | M3.4–M3.5 views: specimens, den cages, grenades, caught card + arrows, positional audio, sweep blips, foam/grenade HUD |
-| next commits | Handoff update; M3 cohesion (Orientation uses real specimen records) |
+| `a4dd0cc`, `d49c817` | Handoff update; M3 cohesion (Orientation uses real specimen records) |
+| `e08d283` | M4.1/M4.2/M4.4: bot brains Lv1–3, multi-player rules, bot league test |
 
 If the commits are not on GitHub yet, the owner applies them first (see §6).
 
 ## 2. Verified
 
-`./tools/check.sh` on Godot 4.7.2 (Linux headless): **51/51 tests**, both scene smokes pass, no warnings. Review render: `docs/shots/M3_specimens.png` (77 draw calls, limit 120), made with `xvfb-run -a .tools/godot --path . --rendering-method gl_compatibility --script res://tools/capture_scene.gd -- --capture --specimens`.
+`./tools/check.sh` on Godot 4.7.2 (Linux headless): **56/56 tests** (~36 s), both scene smokes pass, no warnings. Review render: `docs/shots/M3_specimens.png` (77 draw calls, limit 120), made with `xvfb-run -a .tools/godot --path . --rendering-method gl_compatibility --script res://tools/capture_scene.gd -- --capture --specimens`.
 
 Known flaky (also before M3): a scene smoke can rarely print "ObjectDB instances were leaked at exit" and fail `check.sh`; a rerun passes.
 
@@ -67,7 +68,10 @@ Done: M3.1–M3.5 (views: `game/specimens/specimen_views.gd`, `game/level/grenad
 1. Done: **M3 cohesion check** — Orientation R3 uses a real sleeping `SpecimenState` slime foamed with `Hazards.try_foam` (contain opens the door); R4's scripted demo/live hounds are mirrored into `SpecimenState` so `SpecimenViews` draws them like in a shift (the live hound waits in a closed pen until the demo ends). Shots: `docs/shots/M3_orientation_slime.png`, `M3_orientation_hound.png`.
 2. **👤 Owner checks:** play a shift — do the slime/hound feel fair? Is the caught card clear? Are the positional sounds audible on Windows? Record in `docs/playtests/`.
 3. **M2.5 (👤 owner):** 3–5 new players, record in `docs/playtests/01.md`, fix the top 3 problems. Never invent observations. M1.4 movement check is also still waiting for the owner.
-4. Then **M4 bots**: `sim/bot_brain.gd` makes a `PlayerInput` per bot; add bots to `GameState.players`; `Rules.advance` currently steps only `state.player`, so generalize it to step every player with its own input (keep `players[0]` as the human). Perception: LOS + hearing only.
+4. **M4 bots — sim done** (`sim/bot_brain.gd`; `GameState.create(map, count, seed, spawn_specimens, bot_levels)`; `state.brains[i]` is null for the human, a `BotBrain` for bots; `Rules.advance(state, input, delta)` uses `input` for players[0] and asks each brain for the others).
+   - **Next: M4.3 lobby + bot views.** Menu: bot count 0–7 + level (all, or per bot), then `GameState.create(grid, 1, seed, true, levels)`. Draw bots with `InternView` (number = player id + 1) at interpolated `PlayerState` positions, facing `yaw`, carrying/stun cues. Draw-call budget: `InternView` is ~30 mesh parts, so 7 bots would blow the 120 budget — merge each intern into one mesh (SurfaceTool with vertex colors) or use MultiMesh per part type. Minimap: show bots as numbered dots.
+   - Then 👤 Playtest #2 (solo + 3 bots per level).
+5. **Balance finding (bots, not a playtest):** with 4 bots the normal quota (2 + participants = 6) is met in ~25 s, so a shift ends almost at once. Suggest quota that grows with team size and time (e.g. 3 × participants + 2) — owner decides; change only `sim/tuning.gd` / `GameState.quota()`.
 
 Done-when for each task stays as in `AGENTS.md`: `./tools/check.sh` passes, new logic has tests, roadmap box ticked, one CHANGELOG line.
 
