@@ -5,3 +5,4 @@
 - Next is M2.5: 3-5 new players, no explanation, then fix their top 3 observed problems before M3. Do not fabricate observations or mark manual checks approved.
 - Automated baseline: 29/29 tests; running-scene settings/motion/shift lifecycle smoke; orientation/Skip/save/shift smoke. Settings tabs and Low/High Compatibility renders checked.
 - CI workflow is ../.github/workflows/godot-ci.yml. No external art/audio assets or network services were added.
+- 2026-11-07: Owner said "continue" while M2.5 (human playtest) is pending, so M3 sim work started in parallel; playtest fixes still come first when results arrive. See docs/HANDOFF.md.
