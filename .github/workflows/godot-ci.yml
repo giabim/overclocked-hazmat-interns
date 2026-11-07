@@ -1,0 +1,52 @@
+name: Godot checks
+
+on:
+  push:
+    branches: [godot-long-term]
+    tags: ['v*']
+    paths: ['godot/**', '.github/workflows/godot-ci.yml']
+  pull_request:
+    paths: ['godot/**', '.github/workflows/godot-ci.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: godot
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./tools/get_godot.sh
+      - run: ./tools/check.sh
+
+  export:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: WITH_TEMPLATES=1 ./tools/get_godot.sh
+      - run: ./tools/check.sh
+      - name: Export Web and Linux Server
+        run: |
+          mkdir -p build/web build/server
+          ./.tools/godot --headless --path . --export-release "Web" build/web/index.html
+          ./.tools/godot --headless --path . --export-release "Linux Server" build/server/overclocked.x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: overclocked-web
+          path: godot/build/web/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: overclocked-linux-server
+          path: godot/build/server/
+          if-no-files-found: error
