@@ -67,10 +67,9 @@ func _run() -> void:
 		_fail("Play Again did not reset the shift")
 		return
 	print("Scene smoke passed: settings, motion safety, pickup, delivery, extraction, results, restart")
-	scene.queue_free()
-	await process_frame
-	# Allow the audio thread to release queued playback before the fast headless exit.
-	await create_timer(0.1).timeout
+	if not await SceneCleanup.dispose(self, scene):
+		quit(1)
+		return
 	quit(0)
 
 

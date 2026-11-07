@@ -24,3 +24,4 @@ done < <(find . -type d \( -name .godot -o -name .tools -o -name build -o -name 
 run_checked --script res://tests/run_all.gd
 run_checked --script res://tools/smoke_scene.gd
 run_checked --script res://tools/smoke_orientation.gd
+run_checked --script res://tools/smoke_audio.gd

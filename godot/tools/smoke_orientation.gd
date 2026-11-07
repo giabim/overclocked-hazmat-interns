@@ -27,9 +27,9 @@ func _run() -> void:
 		printerr("FAIL Skip must save progress and enter the playable shift")
 		quit(1)
 		return
-	current_scene.queue_free()
-	await process_frame
-	await create_timer(0.1).timeout
+	if not await SceneCleanup.dispose(self, current_scene):
+		quit(1)
+		return
 	DirAccess.remove_absolute(path)
 	print("Scene smoke passed: orientation starts, Skip stays visible, progress saves, shift loads")
 	quit(0)

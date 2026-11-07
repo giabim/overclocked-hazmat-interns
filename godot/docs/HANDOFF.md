@@ -5,7 +5,7 @@ Updated: 2026-11-07, by Claude. Read this file and `AGENTS.md` before working.
 **Starter prompt (paste to Codex):**
 
 ```
-Read godot/AGENTS.md and godot/docs/HANDOFF.md. Confirm ./tools/check.sh passes (57/57 tests + 2 scene smokes).
+Read godot/AGENTS.md and godot/docs/HANDOFF.md. Confirm ./tools/check.sh passes (57/57 tests + 3 scene smokes).
 Then do the first unchecked item in HANDOFF §6 that does not need a human. Follow AGENTS.md "Done when".
 Never invent playtest results. Reply in ≤ 10 lines.
 ```
@@ -34,7 +34,7 @@ Never invent playtest results. Reply in ≤ 10 lines.
 - **Review renders** (`docs/shots/`): `M3_specimens.png` (77 draw calls), `M3_orientation_slime.png`, `M3_orientation_hound.png`, `M4_bots.png` (7 bots, 93 draw calls; limit 120). Made with `xvfb-run -a .tools/godot --path . --rendering-method gl_compatibility --script res://tools/capture_scene.gd -- --capture --specimens` (or `--bots`, or `--orientation --slime-pen` / `--glass-hall`).
 - **Bot league:** default test (3 × 150 s shifts per level) passes. A 6 × 180 s run gave medians Lv1 68 < Lv2 78 < Lv3 85; catches per run: Lv1 178, Lv2 9, Lv3 1. The full `BOT_LEAGUE=1` run (50 × 240 s per level) was started but not finished.
 - **Waiting for a human (👤):** M1.4 movement feel, M2.5 Playtest #1, feel/audio check of M3 on Windows, Playtest #2 (bots).
-- **Known flaky check (existed before M3):** a scene smoke can rarely print "ObjectDB instances were leaked at exit" and fail `check.sh`; a rerun passes.
+- **Audio smoke flake fixed (Codex, 2026-11-07):** stopped playback objects now drain before scene resources are freed. Verified 12 consecutive passes of all 3 smokes (36 clean processes), including active/paused/overlapping/positional audio.
 
 ## 3. What was built
 
@@ -72,11 +72,14 @@ Never invent playtest results. Reply in ≤ 10 lines.
 
 ## 6. Next tasks, in order
 
-1. 👤 Owner: apply the commits (§7), push, check CI.
+1. [x] Imported bundle at c89bb4a, verified 57 tests on Windows, pushed; GitHub CI run 42382958773 passed.
 2. 👤 Owner: M1.4 walk check + play a shift with specimens and bots (feel, caught card clarity, sounds on Windows). Note results in `docs/playtests/`.
 3. 👤 **M2.5 Playtest #1** (3–5 new players), then fix the top 3 problems. Never invent observations.
 4. **Quota balance** (§5) once the owner picks a formula. Add a test.
-5. Optional polish: per-bot level buttons in the lobby; bots use `ping`; fix the flaky ObjectDB leak in the smokes.
+5. Optional polish:
+   - [ ] Per-bot level buttons in the lobby.
+   - [ ] Bots use ping.
+   - [x] Fix flaky ObjectDB audio cleanup; 57 tests + 3 smokes pass.
 6. 👤 **Playtest #2:** solo + 3 bots at each level. Is Lv1 easy and Lv3 helpful without doing everything?
 7. **M5 Online** (plan first, effort high). Notes: `GameState` is already multi-player. Add `Rules.advance_inputs(state, inputs: Array[PlayerInput], delta)` so the server can feed one input per peer; keep bots server-side; WebSocket per `docs/tech.md` §5.5.
 

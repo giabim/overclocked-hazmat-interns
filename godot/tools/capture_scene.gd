@@ -70,9 +70,9 @@ func _capture() -> void:
 	if "--settings" in OS.get_cmdline_user_args():
 		var settings: SettingsPanel = scene.get("settings_panel")
 		settings.close()
-	scene.queue_free()
-	await process_frame
-	await create_timer(0.1).timeout
+	if not await SceneCleanup.dispose(self, scene):
+		quit(1)
+		return
 	quit(0 if calls > 0 and calls <= 120 and error == OK else 1)
 
 
