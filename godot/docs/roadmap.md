@@ -38,8 +38,8 @@ Rough time is for part-time work (~10 h/week). Each milestone ends with a **cohe
 - [x] **M3.1** `sim/grid_los.gd` (grid ray march) + `sim/flow_field.gd` (BFS distance field to targets). Tests: LOS blocked by walls; flow field leads from every cell to the target.
 - [x] **M3.2** `sim/specimen.gd`: states Den → Patrol → Chase → (Hound: WindUp → Dash → Tired) → Frozen → Patrol; hound wall stun 1.5 s (§3.7). Numbers from §3.4.
 - [x] **M3.3** Foam sprayer (cone, charges, cooldown, freeze, contain 3-in-12 s) and freeze grenade (throw, fuse, radius, respawn).
-- [ ] **M3.4** Caught rule (drop, stun, immunity) + "why you got caught" card + direction arrow.
-- [ ] **M3.5** Specimen views + positional audio (slime 8 m, hound 12 m) + sensor sweep.
+- [x] **M3.4** Caught rule (drop, stun, immunity) + "why you got caught" card + direction arrow.
+- [x] **M3.5** Specimen views + positional audio (slime 8 m, hound 12 m) + sensor sweep.
 - [x] Tests: no catch during immunity; hound wind-up always ≥ 0.6 s before a dash; a carrying player outruns a slime on a straight path; contain only on 3 freezes within 12 s.
 - [ ] **Cohesion check:** frozen look, contain cage, sounds, and Orientation R3/R4 now use real specimens.
 

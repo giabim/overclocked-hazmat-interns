@@ -6,3 +6,4 @@
 - Automated baseline: 29/29 tests; running-scene settings/motion/shift lifecycle smoke; orientation/Skip/save/shift smoke. Settings tabs and Low/High Compatibility renders checked.
 - CI workflow is ../.github/workflows/godot-ci.yml. No external art/audio assets or network services were added.
 - 2026-11-07: Owner said "continue" while M2.5 (human playtest) is pending, so M3 sim work started in parallel; playtest fixes still come first when results arrive. See docs/HANDOFF.md.
+- Known flaky check (seen before M3 too): a scene smoke can rarely print "N ObjectDB instances were leaked at exit", which makes check.sh fail; rerun passes. Worth a proper fix later (free scene resources before quit).

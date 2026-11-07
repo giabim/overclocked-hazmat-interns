@@ -30,14 +30,14 @@ func publish(events: Array[Dictionary], fallback: Vector3 = Vector3.ZERO) -> voi
 
 func _on_fx(kind: StringName, data: Dictionary) -> void:
 	_audio.play_event(kind)
-	var captions: Dictionary = {&"pickup": "CLANK / COOLANT SECURED", &"delivery": "WHOOSH / COOLANT DELIVERED", &"heat_warning": "ALARM / LAB OVERHEATING", &"hound_windup": "CRACKLE / HOUND WINDING UP", &"hound_wall_stun": "CLANG / HOUND HIT A WALL", &"contained": "CLUNK / SPECIMEN CONTAINED"}
+	var captions: Dictionary = {&"pickup": "CLANK / COOLANT SECURED", &"delivery": "WHOOSH / COOLANT DELIVERED", &"heat_warning": "ALARM / LAB OVERHEATING", &"hound_windup": "CRACKLE / HOUND WINDING UP", &"hound_wall_stun": "CLANG / HOUND HIT A WALL", &"contained": "CLUNK / SPECIMEN CONTAINED", &"caught": "THUD / CAUGHT", &"slime_notice": "SQUELCH / SLIME NEARBY", &"hound_notice": "CRACKLE / HOUND SPOTTED YOU", &"grenade_burst": "CRACK / FREEZE BURST", &"sensor_sweep": "PING / SENSOR SWEEP", &"foam_hit": "CRUNCH / FROZEN"}
 	if _subtitles and caption_target != null and captions.has(kind):
 		caption_target.text = captions[kind]
 		_caption_remaining = 2.0
 	if hud != null:
-		hud.feedback(kind)
-	if player != null and kind in [&"foam_fired", &"delivery", &"contained"]:
-		player.add_camera_kick(0.35)
+		hud.feedback(kind, data)
+	if player != null and kind in [&"foam_fired", &"delivery", &"contained", &"caught"]:
+		player.add_camera_kick(0.5 if kind == &"caught" else 0.35)
 	if DisplayServer.get_name() == "headless":
 		return
 	var at: Vector3 = data.get("position", Vector3.ZERO)
@@ -57,6 +57,12 @@ func _on_fx(kind: StringName, data: Dictionary) -> void:
 			_burst(at, LevelBuilder.COOLANT.lightened(0.5), 20, 0.35)
 		&"foam_miss":
 			_burst(at, Color("a5afb4"), 8, 0.2)
+		&"grenade_burst":
+			_burst(at, LevelBuilder.COOLANT.lightened(0.4), 60, 0.5, Vector3.UP, 180, 0.08)
+		&"grenade_pickup":
+			_burst(at, LevelBuilder.COOLANT, 10, 0.25)
+		&"caught":
+			_burst(at, Color.WHITE, 14, 0.3)
 		&"foam_fired":
 			if player != null:
 				var direction: Vector3 = -player.camera.global_transform.basis.z

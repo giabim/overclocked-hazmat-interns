@@ -23,6 +23,16 @@ var _menu: Panel
 var _menu_help: Label
 var _shown_results: bool = false
 var _root: Control
+var _tools: Label
+var _card: Panel
+var _card_text: Label
+var _card_remaining: float = 0
+var _overlay: ColorRect
+var _overlay_remaining: float = 0
+var _arrow_layer: Control
+## Each arrow: {"angle": float, "color": Color, "remaining": float}
+var _arrows: Array[Dictionary] = []
+var _state: GameState
 
 
 func _ready() -> void:
@@ -54,6 +64,23 @@ func _ready() -> void:
 	_count = _label(inventory, "COOLANT  0 / 3", Vector2(16, 10), Vector2(320, 26), 22)
 	_carry = _label(inventory, "[ ] EMPTY HANDS", Vector2(16, 44), Vector2(320, 24), 14)
 	_carry.add_theme_color_override("font_color", Color.WHITE)
+	var tools: Panel = _panel(_root, Vector2(28, -168), Vector2(340, 52), Vector2(0, 1))
+	_tools = _label(tools, "FOAM", Vector2(16, 12), Vector2(320, 26), 16)
+	_overlay = ColorRect.new()
+	_root.add_child(_overlay)
+	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay.color = Color(0.45, 0.47, 0.5, 0)
+	_arrow_layer = Control.new()
+	_root.add_child(_arrow_layer)
+	_arrow_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_arrow_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_arrow_layer.draw.connect(_draw_arrows)
+	_card = _panel(_root, Vector2(-290, 160), Vector2(580, 56), Vector2(0.5, 0))
+	_card_text = _label(_card, "", Vector2(14, 14), Vector2(552, 28), 17)
+	_card_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_card_text.add_theme_color_override("font_color", Color("ff5a1f"))
+	_card.hide()
 	_prompt = _label(_root, "", Vector2(-250, -94), Vector2(500, 28), 17, Vector2(0.5, 1))
 	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_flash = _label(_root, "", Vector2(-300, 110), Vector2(600, 40), 22, Vector2(0.5, 0))
@@ -86,7 +113,19 @@ func _ready() -> void:
 
 
 func sync(state: GameState, delta: float) -> void:
+	_state = state
 	_root.size = get_viewport().get_visible_rect().size
+	var grenade: String = "[%s] FREEZE GRENADE" % SettingsStore.binding_text("throw") if state.player.has_grenade else "NO GRENADE"
+	_tools.text = "FOAM %d / %d   ·   %s" % [state.player.foam_charges, Tuning.FOAM_MAX_CHARGES, grenade]
+	_card_remaining = maxf(0, _card_remaining - delta)
+	_card.visible = _card_remaining > 0
+	_overlay_remaining = maxf(0, _overlay_remaining - delta)
+	_overlay.color.a = 0.45 * _overlay_remaining
+	for arrow: Dictionary in _arrows:
+		arrow["remaining"] = float(arrow["remaining"]) - delta
+	_arrows = _arrows.filter(func(arrow: Dictionary) -> bool: return float(arrow["remaining"]) > 0)
+	_arrow_layer.queue_redraw()
+	_map.blip_strength = maxf(0, _map.blip_strength - delta)
 	_heat.value = state.heat
 	_heat_text.text = "%d%%" % ceili(state.heat)
 	_count.text = "COOLANT  %d / %d" % [state.delivered, state.quota()]
@@ -95,7 +134,9 @@ func sync(state: GameState, delta: float) -> void:
 	_prompt.text = "FIND COOLANT / CYAN CANISTERS"
 	_menu_help.text = "%s move · mouse look · %s interact · %s cursor" % [SettingsStore.movement_binding_text(), SettingsStore.binding_text("interact"), SettingsStore.binding_text("pause")]
 	var interact_key: String = SettingsStore.binding_text("interact")
-	if state.phase == GameState.Phase.EXTRACTION:
+	if state.player.is_stunned():
+		_prompt.text = "CAUGHT / RECOVERING"
+	elif state.phase == GameState.Phase.EXTRACTION:
 		_prompt.text = "EXTRACT AT AIRLOCK / %ds" % ceili(state.extraction_remaining)
 	elif state.player.carrying >= 0:
 		_prompt.text = "[%s] DELIVER COOLANT / HEAT -6%%" % interact_key if Rules.at_airlock(state) else "CARRY TO AIRLOCK / EAST WING"
@@ -116,12 +157,62 @@ func sync(state: GameState, delta: float) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-func feedback(kind: StringName) -> void:
-	var messages: Dictionary = {&"pickup": "COOLANT SECURED", &"delivery": "DELIVERED / HEAT -6%", &"heat_warning": "WARNING / LAB OVERHEATING", &"extraction": "QUOTA MET / EXTRACT NOW"}
+func feedback(kind: StringName, data: Dictionary = {}) -> void:
+	var messages: Dictionary = {
+		&"pickup": "COOLANT SECURED", &"delivery": "DELIVERED / HEAT -6%", &"heat_warning": "WARNING / LAB OVERHEATING",
+		&"extraction": "QUOTA MET / EXTRACT NOW", &"contained": "+%d CONTAINED" % Tuning.CONTAIN_SCORE,
+		&"grenade_pickup": "FREEZE GRENADE / [%s] TO THROW" % SettingsStore.binding_text("throw"),
+		&"canister_dropped": "COOLANT DROPPED / PICK IT UP AGAIN",
+	}
 	if messages.has(kind):
 		_flash.text = messages[kind]
-		_flash.modulate = LevelBuilder.AMBER if kind == &"heat_warning" else LevelBuilder.COOLANT
+		_flash.modulate = LevelBuilder.AMBER if kind in [&"heat_warning", &"canister_dropped"] else LevelBuilder.COOLANT
 		_flash_remaining = 1.5
+	match kind:
+		&"caught":
+			_card_text.text = caught_text(data)
+			_card_remaining = 2.5
+			_overlay_remaining = 1.0
+			_arrows.append({"angle": float(data.get("from_angle", 0.0)), "color": Color("ff5a1f"), "remaining": 1.5})
+		&"hound_notice", &"hound_windup":
+			var at: Variant = data.get("position")
+			if _state != null and at is Vector3:
+				var offset: Vector2 = Vector2(at.x, at.z) - _state.player.position
+				_arrows.append({"angle": _state.player.facing().angle_to(offset), "color": LevelBuilder.AMBER, "remaining": 1.2})
+		&"sensor_sweep":
+			_map.blips = data.get("blips", [] as Array[Vector2])
+			_map.blip_strength = 1.0
+
+
+## "Caught by Spark Hound — it dashed from the left" (design.md §3.5).
+static func caught_text(data: Dictionary) -> String:
+	var specimen: String = "SPARK HOUND" if data.get("specimen") == &"hound" else "GOO SLIME"
+	var how: String = "IT DASHED" if data.get("how") == &"dashed" else "IT TOUCHED YOU"
+	return "CAUGHT BY %s — %s %s" % [specimen, how, direction_words(float(data.get("from_angle", 0.0)))]
+
+
+## from_angle: 0 = in front, +PI/2 = right, -PI/2 = left, ±PI = behind.
+static func direction_words(angle: float) -> String:
+	var size: float = absf(wrapf(angle, -PI, PI))
+	if size <= PI / 4.0:
+		return "FROM THE FRONT"
+	if size >= PI * 0.75:
+		return "FROM BEHIND"
+	return "FROM THE RIGHT" if wrapf(angle, -PI, PI) > 0 else "FROM THE LEFT"
+
+
+func _draw_arrows() -> void:
+	var area: Vector2 = _arrow_layer.size
+	var centre: Vector2 = area / 2.0
+	for arrow: Dictionary in _arrows:
+		var angle: float = float(arrow["angle"])
+		var direction: Vector2 = Vector2(sin(angle), -cos(angle))
+		var tip: Vector2 = centre + Vector2(direction.x * area.x * 0.44, direction.y * area.y * 0.4)
+		var side: Vector2 = Vector2(-direction.y, direction.x) * 16.0
+		var base: Vector2 = tip - direction * 30.0
+		var color: Color = arrow["color"]
+		color.a = clampf(float(arrow["remaining"]) * 1.5, 0, 1)
+		_arrow_layer.draw_colored_polygon(PackedVector2Array([tip, base + side, base - side]), color)
 
 
 func _restart() -> void:
@@ -129,6 +220,9 @@ func _restart() -> void:
 	_menu.hide()
 	_shown_results = false
 	_flash_remaining = 0
+	_card_remaining = 0
+	_overlay_remaining = 0
+	_arrows.clear()
 	restart_requested.emit()
 
 

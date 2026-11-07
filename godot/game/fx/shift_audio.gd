@@ -24,6 +24,14 @@ func _ready() -> void:
 	_clips[&"door_open"] = _make_clip(0.16, 480, 720, false)
 	_clips[&"hound_windup"] = _make_clip(Tuning.HOUND_WINDUP_SECONDS, 700, 1500, true)
 	_clips[&"hound_wall_stun"] = _make_clip(0.25, 300, 100, true)
+	_clips[&"caught"] = _make_clip(0.3, 160, 60, true)
+	_clips[&"canister_dropped"] = _make_clip(0.2, 520, 210, false)
+	_clips[&"grenade_pickup"] = _make_clip(0.15, 600, 900, false)
+	_clips[&"grenade_thrown"] = _make_clip(0.2, 300, 520, true)
+	_clips[&"grenade_burst"] = _make_clip(0.45, 1200, 200, true)
+	_clips[&"slime_notice"] = _make_clip(0.35, 140, 90, true)
+	_clips[&"hound_notice"] = _make_clip(0.3, 900, 1400, true)
+	_clips[&"sensor_sweep"] = _make_clip(0.25, 1200, 1200, false)
 
 
 func play_event(kind: StringName) -> void:
@@ -63,4 +71,29 @@ static func _make_clip(seconds: float, start_hz: float, end_hz: float, noisy: bo
 	clip.format = AudioStreamWAV.FORMAT_16_BITS
 	clip.mix_rate = rate
 	clip.data = data
+	return clip
+
+
+## Seamless loop for positional specimen sounds (whole cycles, no envelope).
+static func make_loop(seconds: float, hz: float, noisy: bool) -> AudioStreamWAV:
+	var rate: int = 22050
+	var cycles: int = maxi(1, roundi(seconds * hz))
+	var count: int = int(round(cycles * rate / hz))
+	var data: PackedByteArray = PackedByteArray()
+	data.resize(count * 2)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 91
+	for index: int in count:
+		var phase: float = TAU * cycles * float(index) / count
+		var sample: float = sin(phase) * 0.45 + sin(phase * 3.0) * 0.12
+		if noisy:
+			sample += rng.randf_range(-0.25, 0.25) * (0.5 + 0.5 * sin(phase / cycles * 4.0))
+		data.encode_s16(index * 2, int(clampf(sample, -1, 1) * 14000))
+	var clip: AudioStreamWAV = AudioStreamWAV.new()
+	clip.format = AudioStreamWAV.FORMAT_16_BITS
+	clip.mix_rate = rate
+	clip.data = data
+	clip.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	clip.loop_begin = 0
+	clip.loop_end = count
 	return clip

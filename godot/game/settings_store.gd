@@ -143,7 +143,7 @@ static func apply_values(scene: Node, values: Dictionary) -> void:
 			node.head_bob = clean["head_bob"]
 			node.toggle_fire = clean["toggle_fire"]
 			node.set_horizontal_fov(clean["fov"])
-		elif node is Feedback:
+		elif node is Feedback or node is SpecimenViews:
 			node.apply_settings(clean)
 		elif node is WorldEnvironment and node.environment != null:
 			node.environment.glow_enabled = clean["quality"] >= 1

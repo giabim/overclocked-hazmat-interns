@@ -2,6 +2,9 @@ class_name LabMinimap
 extends Control
 
 var state: GameState
+## Sensor-sweep blips (specimens are otherwise hidden on the map) and their fade.
+var blips: Array[Vector2] = []
+var blip_strength: float = 0.0
 
 
 func _draw() -> void:
@@ -19,6 +22,12 @@ func _draw() -> void:
 			draw_circle(origin + canister.position / Tuning.CELL_SIZE * scale, 2.1, LevelBuilder.COOLANT)
 	for cell: Vector2i in state.grid.cells_of("E"):
 		draw_rect(Rect2(origin + Vector2(cell) * scale, Vector2.ONE * scale), LevelBuilder.COOLANT)
+	for pickup: GrenadePickup in state.grenade_pickups:
+		if pickup.available:
+			draw_rect(Rect2(origin + pickup.position / Tuning.CELL_SIZE * scale - Vector2(2, 2), Vector2(4, 4)), Color("e9e4d8"))
+	if blip_strength > 0:
+		for blip: Vector2 in blips:
+			draw_circle(origin + blip / Tuning.CELL_SIZE * scale, 3.4, Color(1.0, 0.35, 0.12, blip_strength))
 	var at: Vector2 = origin + state.player.position / Tuning.CELL_SIZE * scale
 	draw_circle(at, 3.2, Color.WHITE)
 	var names: Array[String] = ["W-01", "E-01", "N-01", "S-01"]
