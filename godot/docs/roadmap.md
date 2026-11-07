@@ -15,7 +15,7 @@ Rough time is for part-time work (~10 h/week). Each milestone ends with a **cohe
 - [x] **M0.2** `tools/get_godot.sh` and `tools/check.sh` from §5.7. **Done:** `./tools/get_godot.sh` prints `4.7.2.stable…`.
 - [x] **M0.3** `project.godot` per §5.2, empty `game/main.tscn` (Node3D + Camera3D + "Overclocked" label), input map. **Done:** `--import` has no errors.
 - [x] **M0.4** `tests/run_all.gd` (§5.7) + `tests/test_smoke.gd` (one passing test). **Done:** `./tools/check.sh` exits 0 and prints `1/1 tests passed`.
-- [ ] **M0.5** CI workflow (§5.7). **Done:** CI is green on GitHub.
+- [x] **M0.5** CI workflow (§5.7). **Done:** CI is green on GitHub.
 
 ### M1 — Vertical slice (offline, 1 player)
 - [ ] **M1.1** `sim/map_grid.gd`, `maps/lab_a.txt`. Tests: size 24×15; 213 walkable; all reachable from `P` (BFS); counts of `C G M P E +` match §5.4.
