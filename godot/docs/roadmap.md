@@ -29,7 +29,7 @@ Rough time is for part-time work (~10 h/week). Each milestone ends with a **cohe
 
 ### M2 — Teach + feedback + feel
 - [x] **M2.1** `maps/orientation.txt` + room triggers for R1–R4 (§3.6), idle-8 s hints, Skip, first-run flag. (Slime and hound in R3/R4 can be scripted fakes until M3.)
-- [ ] **M2.2** `game/fx/feedback.gd`: one event bus (`signal fx(kind: StringName, data: Dictionary)`) → sounds, particles, HUD (§3.5).
+- [x] **M2.2** `game/fx/feedback.gd`: one event bus (`signal fx(kind: StringName, data: Dictionary)`) → sounds, particles, HUD (§3.5).
 - [ ] **M2.3** Juice pass (D7): small camera kick (≤ 0.5°, off with "reduce motion"), steam, sparks, light shifts with Heat.
 - [ ] **M2.4** Settings menu (§3.9), saved to `user://settings.cfg`. Quality tiers (§4.6).
 - [ ] **M2.5** 👤 **Playtest #1:** 3–5 new players, no explanation. Write down where they get stuck in `docs/playtests/01.md`. Fix the top 3 problems before M3.

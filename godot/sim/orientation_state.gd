@@ -58,11 +58,11 @@ func advance(input: PlayerInput, delta: float) -> void:
 			if game.player.carrying < 0 and canister.available and position.distance_to(canister.position) <= Tuning.INTERACT_RANGE:
 				canister.available = false
 				game.player.carrying = 0
-				game.events.append({"kind": &"pickup"})
+				game.events.append({"kind": &"pickup", "position": canister.position})
 			elif game.player.carrying == 0 and position.distance_to(game.grid.cell_center(SLOT_CELL)) <= Tuning.INTERACT_RANGE:
 				game.player.carrying = -1
 				game.delivered = 1
-				game.events.append({"kind": &"delivery"})
+				game.events.append({"kind": &"delivery", "position": game.grid.cell_center(SLOT_CELL)})
 				_unlock(1)
 		if open_doors[1] and position.y > 8 * Tuning.CELL_SIZE:
 			_enter_room(2)
@@ -74,10 +74,12 @@ func advance(input: PlayerInput, delta: float) -> void:
 			var facing: Vector2 = Vector2.UP.rotated(-input.yaw)
 			if target.length() <= Tuning.FOAM_RANGE and facing.dot(target.normalized()) >= cos(deg_to_rad(Tuning.FOAM_CONE_DEGREES)):
 				foam_hits = mini(Tuning.CONTAIN_FREEZES, foam_hits + 1)
-				game.events.append({"kind": &"foam_hit"})
+				game.events.append({"kind": &"foam_hit", "position": game.grid.cell_center(SLIME_CELL)})
 				if foam_hits == Tuning.CONTAIN_FREEZES and not open_doors[2]:
 					_unlock(2)
 					game.events.append({"kind": &"contained"})
+			else:
+				game.events.append({"kind": &"foam_miss", "position": position + facing * Tuning.FOAM_RANGE})
 		if open_doors[2] and position.x < 12 * Tuning.CELL_SIZE:
 			_enter_room(3)
 	elif room == 3:
@@ -107,7 +109,7 @@ func _advance_hound(delta: float) -> void:
 			game.events.append({"kind": &"hound_wall_stun", "position": demo_position()})
 		if demo_seconds >= Tuning.HOUND_WINDUP_SECONDS + Tuning.HOUND_DASH_SECONDS + Tuning.HOUND_WALL_STUN_SECONDS:
 			demo_finished = true
-			game.events.append({"kind": &"hound_windup"})
+			game.events.append({"kind": &"hound_windup", "position": hound_position})
 		return
 	hound_timer -= delta
 	if hound_phase == HoundPhase.WINDUP and hound_timer <= 0:
@@ -120,7 +122,7 @@ func _advance_hound(delta: float) -> void:
 			hound_phase = HoundPhase.STUNNED
 			hound_timer = Tuning.HOUND_WALL_STUN_SECONDS
 			_unlock(3)
-			game.events.append({"kind": &"hound_wall_stun"})
+			game.events.append({"kind": &"hound_wall_stun", "position": hound_position})
 		else:
 			hound_position = proposed
 			if hound_timer <= 0:
@@ -129,7 +131,7 @@ func _advance_hound(delta: float) -> void:
 	elif hound_phase == HoundPhase.TIRED and hound_timer <= 0:
 		hound_phase = HoundPhase.WINDUP
 		hound_timer = Tuning.HOUND_WINDUP_SECONDS
-		game.events.append({"kind": &"hound_windup"})
+		game.events.append({"kind": &"hound_windup", "position": hound_position})
 
 
 func _unlock(index: int) -> void:
@@ -137,7 +139,7 @@ func _unlock(index: int) -> void:
 		return
 	open_doors[index] = true
 	game.grid.set_blocked(DOORS[index], false)
-	game.events.append({"kind": &"door_open"})
+	game.events.append({"kind": &"door_open", "position": game.grid.cell_center(DOORS[index])})
 
 
 func _enter_room(index: int) -> void:

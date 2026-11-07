@@ -19,6 +19,7 @@ func _ready() -> void:
 	_clips[&"extraction"] = _make_clip(0.3, 520, 1040, false)
 	_clips[&"foam_fired"] = _make_clip(0.18, 220, 110, true)
 	_clips[&"foam_hit"] = _make_clip(0.16, 940, 580, true)
+	_clips[&"foam_miss"] = _make_clip(0.1, 180, 90, true)
 	_clips[&"contained"] = _make_clip(0.4, 440, 1040, false)
 	_clips[&"door_open"] = _make_clip(0.16, 480, 720, false)
 	_clips[&"hound_windup"] = _make_clip(Tuning.HOUND_WINDUP_SECONDS, 700, 1500, true)

@@ -35,10 +35,19 @@ static func advance(state: GameState, input: PlayerInput, delta: float) -> void:
 
 
 static func at_airlock(state: GameState) -> bool:
+	return state.player.position.distance_to(nearest_airlock(state)) <= Tuning.INTERACT_RANGE
+
+
+static func nearest_airlock(state: GameState) -> Vector2:
+	var nearest: Vector2 = Vector2(INF, INF)
+	var distance: float = INF
 	for cell: Vector2i in state.grid.cells_of("E"):
-		if state.player.position.distance_to(state.grid.cell_center(cell)) <= Tuning.INTERACT_RANGE:
-			return true
-	return false
+		var candidate: Vector2 = state.grid.cell_center(cell)
+		var current: float = state.player.position.distance_squared_to(candidate)
+		if current < distance:
+			nearest = candidate
+			distance = current
+	return nearest
 
 
 static func _interact(state: GameState) -> void:
@@ -52,7 +61,7 @@ static func _interact(state: GameState) -> void:
 			state.delivered += 1
 			state.score += Tuning.DELIVERY_SCORE
 			state.heat = maxf(0, state.heat - Tuning.DELIVERY_COOLING)
-			state.events.append({"kind": &"delivery", "id": canister.id})
+			state.events.append({"kind": &"delivery", "id": canister.id, "position": nearest_airlock(state)})
 			if state.delivered >= state.quota():
 				state.phase = GameState.Phase.EXTRACTION
 				state.events.append({"kind": &"extraction"})
@@ -67,7 +76,7 @@ static func _interact(state: GameState) -> void:
 	if nearest != null:
 		nearest.available = false
 		state.player.carrying = nearest.id
-		state.events.append({"kind": &"pickup", "id": nearest.id})
+		state.events.append({"kind": &"pickup", "id": nearest.id, "position": nearest.position})
 
 
 static func _respawn(state: GameState, canister: CanisterState) -> void:

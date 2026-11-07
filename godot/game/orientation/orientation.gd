@@ -9,7 +9,7 @@ var _demo: Node3D
 var _hound: Node3D
 var _hint: Label
 var _heading: Label
-var _audio: ShiftAudio
+var feedback_bus: Feedback
 var _leaving: bool = false
 
 @onready var player: PlayerView = $Player
@@ -55,8 +55,9 @@ func _ready() -> void:
 	world.environment.ambient_light_color = Color.WHITE
 	world.environment.ambient_light_energy = 0.6
 	add_child(world)
-	_audio = ShiftAudio.new()
-	add_child(_audio)
+	feedback_bus = Feedback.new()
+	feedback_bus.player = player
+	add_child(feedback_bus)
 	_build_ui()
 
 
@@ -66,8 +67,7 @@ func _physics_process(delta: float) -> void:
 
 func advance_input(input: PlayerInput, delta: float) -> void:
 	state.advance(input, delta)
-	for event: Dictionary in state.game.events:
-		_audio.play_event(event["kind"])
+	feedback_bus.publish(state.game.events, Vector3(state.game.player.position.x, 1, state.game.player.position.y))
 	if state.finished:
 		_finish()
 

@@ -3,7 +3,7 @@ extends Node3D
 var grid: MapGrid
 var state: GameState
 var canister_views: CanisterViews
-var audio: ShiftAudio
+var feedback_bus: Feedback
 var _menu_open: bool = false
 var _light: DirectionalLight3D
 
@@ -24,8 +24,10 @@ func _ready() -> void:
 	add_child(canister_views)
 	canister_views.build(state.canisters.size())
 	canister_views.sync(state)
-	audio = ShiftAudio.new()
-	add_child(audio)
+	feedback_bus = Feedback.new()
+	feedback_bus.hud = hud
+	feedback_bus.player = player
+	add_child(feedback_bus)
 	hud.restart_requested.connect(_restart)
 	hud.menu_requested.connect(_open_menu)
 	var light: DirectionalLight3D = DirectionalLight3D.new()
@@ -56,10 +58,7 @@ func _physics_process(delta: float) -> void:
 func advance_input(input: PlayerInput, delta: float) -> void:
 	Rules.advance(state, input, delta)
 	canister_views.sync(state)
-	for event: Dictionary in state.events:
-		var kind: StringName = event["kind"]
-		hud.feedback(kind)
-		audio.play_event(kind)
+	feedback_bus.publish(state.events, Vector3(state.player.position.x, 1.0, state.player.position.y))
 	player.input_enabled = not state.finished()
 
 
