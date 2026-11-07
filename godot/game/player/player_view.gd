@@ -16,6 +16,10 @@ var _interact_queued: bool = false
 func _ready() -> void:
 	camera.position.y = Tuning.EYE_HEIGHT
 	camera.keep_aspect = Camera3D.KEEP_WIDTH
+	camera.cull_mask = 1
+	var body: InternView = InternView.new()
+	add_child(body)
+	body.build(1, false, true)
 	set_horizontal_fov(horizontal_fov)
 	if DisplayServer.get_name() != "headless" and not "--capture" in OS.get_cmdline_user_args():
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

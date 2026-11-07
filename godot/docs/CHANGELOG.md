@@ -12,3 +12,4 @@
 - 2026-11-06 — M1.4 implementation: Added first-person frame-rate mouse look, horizontal FOV, 30 Hz shared input/state movement and view interpolation; 12/12 tests pass. Human smoothness/map walkthrough remains pending.
 - 2026-11-06 — M1.5: Added pure authoritative canister/delivery/Heat/quota/extraction/results rules and batched canister views; timing, scoring, respawns, inventory and terminal states pass (20/20 tests).
 - 2026-11-06 — M1.6: Added Heat/carry/quota HUD, color-and-code minimap, contextual cues, results/restart/menu, synthesized pickup/delivery/alarms, and heat lighting. Reviewed play/results renders (42/48 draw calls); 20 tests plus running-scene lifecycle smoke pass.
+- 2026-11-06 — M1.7 implementation: Added human-proportioned primitive intern with two-lens respirator, chest tank/hose, numbers/band and four attachment points; rendered three 128px silhouettes and color views. 21 tests and scene smoke pass; human art approval remains pending.
