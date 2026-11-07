@@ -46,7 +46,7 @@ Rough time is for part-time work (~10 h/week). Each milestone ends with a **cohe
 ### M4 — Bots (1–7, Lv1–3)
 - [x] **M4.1** `sim/bot_brain.gd`: produces the same input struct as a human. Perception = LOS + hearing radius only.
 - [x] **M4.2** Lv1/Lv2/Lv3 behaviors (§3.10), all numbers in `tuning.gd`.
-- [ ] **M4.3** Lobby screen (offline): add 1–7 bots, pick a level for all or per bot.
+- [x] **M4.3** Lobby screen (offline): add 1–7 bots, pick a level for all or per bot.
 - [x] **M4.4** Headless bot league test (`tests/test_bot_league.gd`, can be slow; skip in CI with an env flag): 50 shifts per level. **Done:** median score Lv3 > Lv2 > Lv1; no bot stays still for > 5 s while it has a goal.
 - [ ] 👤 **Playtest #2:** solo with 3 bots at each level. Is Lv1 easy, Lv3 helpful but not doing everything?
 

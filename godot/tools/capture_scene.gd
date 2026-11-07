@@ -23,6 +23,8 @@ func _capture() -> void:
 		state.phase = GameState.Phase.SUCCESS
 	if "--specimens" in OS.get_cmdline_user_args():
 		_stage_specimens(scene)
+	if "--bots" in OS.get_cmdline_user_args():
+		_stage_bots(scene)
 	if training and ("--slime-pen" in OS.get_cmdline_user_args() or "--glass-hall" in OS.get_cmdline_user_args()):
 		_stage_training_room(scene, "--slime-pen" in OS.get_cmdline_user_args())
 	for _frame: int in 30:
@@ -57,6 +59,8 @@ func _capture() -> void:
 		file = "M2_feedback.png"
 	if "--specimens" in OS.get_cmdline_user_args():
 		file = "M3_specimens.png"
+	if "--bots" in OS.get_cmdline_user_args():
+		file = "M4_bots.png"
 	if "--settings" in OS.get_cmdline_user_args():
 		file = "M2_settings_controls.png" if "--controls" in OS.get_cmdline_user_args() else ("M2_settings_audio.png" if "--audio" in OS.get_cmdline_user_args() else "M2_settings.png")
 	if "--low-quality" in OS.get_cmdline_user_args() or "--high-quality" in OS.get_cmdline_user_args():
@@ -122,3 +126,23 @@ func _stage_training_room(scene: Node, slime_pen: bool) -> void:
 		player.yaw = PI / 2.0
 	player.configure(training.game.grid, training.game.player.position)
 	player.yaw = PI if slime_pen else PI / 2.0
+
+
+## M4 review shot: a full team of 7 mixed-level bots facing the camera (draw-call budget check).
+func _stage_bots(scene: Node) -> void:
+	var hud: ShiftHUD = scene.get_node("HUD")
+	hud.bot_count = Tuning.MAX_BOTS
+	hud.bot_level = 4
+	scene.call("_restart")
+	scene.set_physics_process(false)
+	var state: GameState = scene.get("state")
+	var player: PlayerView = scene.get_node("Player")
+	player.yaw = -PI / 2.0
+	var eye: Vector2 = state.player.position
+	for index: int in range(1, state.players.size()):
+		var bot: PlayerState = state.players[index]
+		var row: int = (index - 1) / 4
+		var column: int = (index - 1) % 4
+		bot.teleport(eye + Vector2(3.0 + row * 1.6, -2.1 + column * 1.4))
+		bot.yaw = PI / 2.0
+	state.players[2].carrying = 0

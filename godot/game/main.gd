@@ -5,6 +5,7 @@ var state: GameState
 var canister_views: CanisterViews
 var specimen_views: SpecimenViews
 var grenade_views: GrenadeViews
+var bot_views: BotViews
 var feedback_bus: Feedback
 var settings_panel: SettingsPanel
 var _menu_open: bool = false
@@ -33,6 +34,9 @@ func _ready() -> void:
 	grenade_views = GrenadeViews.new()
 	add_child(grenade_views)
 	grenade_views.build(state)
+	bot_views = BotViews.new()
+	add_child(bot_views)
+	bot_views.build(state)
 	feedback_bus = Feedback.new()
 	feedback_bus.hud = hud
 	feedback_bus.player = player
@@ -75,6 +79,7 @@ func advance_input(input: PlayerInput, delta: float) -> void:
 	canister_views.sync(state)
 	specimen_views.sync(state)
 	grenade_views.sync(state)
+	bot_views.sync(state)
 	feedback_bus.publish(state.events, Vector3(state.player.position.x, 1.0, state.player.position.y))
 	player.input_enabled = not state.finished()
 
@@ -86,7 +91,7 @@ func _process(_delta: float) -> void:
 
 
 func _restart() -> void:
-	state = GameState.create(grid)
+	state = GameState.create(grid, 1, randi(), true, hud.bot_levels())
 	player.state = state.player
 	player.configure(grid, state.player.position)
 	player.yaw = -PI / 2.0
@@ -98,6 +103,7 @@ func _restart() -> void:
 	canister_views.sync(state)
 	specimen_views.build(state)
 	grenade_views.build(state)
+	bot_views.build(state)
 
 
 func _open_menu() -> void:

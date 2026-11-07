@@ -40,3 +40,24 @@ func test_views_build_one_body_per_specimen_and_one_cage_per_den() -> String:
 	if crates != state.grenade_pickups.size():
 		return "Expected one crate per G cell, got %d" % crates
 	return ""
+
+
+func test_bot_intern_is_one_mesh_plus_numbers() -> String:
+	var body: Node3D = BotViews.merged_intern(5)
+	var meshes: int = 0
+	var labels: int = 0
+	for child: Node in body.get_children():
+		if child is MeshInstance3D:
+			meshes += 1
+		elif child is Label3D:
+			labels += 1
+			if (child as Label3D).text != "05":
+				body.free()
+				return "Bot number label should read 05"
+	var vertices: int = (body.get_child(0) as MeshInstance3D).mesh.get_faces().size()
+	body.free()
+	if meshes != 1 or labels != 2:
+		return "Expected 1 merged mesh and 2 number labels, got %d and %d" % [meshes, labels]
+	if vertices < 300:
+		return "Merged intern looks empty (%d face vertices)" % vertices
+	return ""

@@ -33,6 +33,11 @@ var _arrow_layer: Control
 ## Each arrow: {"angle": float, "color": Color, "remaining": float}
 var _arrows: Array[Dictionary] = []
 var _state: GameState
+## Lobby choice (M4.3): number of bots 0–7 and level 1–3, or 4 = mixed (1, 2, 3, 1, …).
+var bot_count: int = 0
+var bot_level: int = 2
+var _bots_label: Label
+var _level_button: Button
 
 
 func _ready() -> void:
@@ -100,14 +105,19 @@ func _ready() -> void:
 	_button(_results, "PLAY AGAIN", Vector2(28, 270), Vector2(202, 48), _restart)
 	_button(_results, "MAIN MENU", Vector2(248, 270), Vector2(202, 48), _open_menu)
 	_results.hide()
-	_menu = _panel(_root, Vector2(-240, -190), Vector2(480, 380), Vector2(0.5, 0.5))
+	_menu = _panel(_root, Vector2(-240, -240), Vector2(480, 480), Vector2(0.5, 0.5))
 	_menu.mouse_filter = Control.MOUSE_FILTER_STOP
 	_label(_menu, "OVERCLOCKED", Vector2(28, 28), Vector2(424, 48), 32)
-	_label(_menu, "THE HAZMAT INTERNS / SOLO PROTOTYPE", Vector2(28, 83), Vector2(424, 24), 14)
-	_button(_menu, "START SOLO SHIFT", Vector2(28, 139), Vector2(424, 48), _restart)
-	_button(_menu, "SETTINGS", Vector2(28, 195), Vector2(424, 42), func() -> void: settings_requested.emit())
-	_button(_menu, "REPLAY ORIENTATION", Vector2(28, 245), Vector2(424, 42), func() -> void: orientation_requested.emit())
-	_menu_help = _label(_menu, "", Vector2(28, 308), Vector2(424, 56), 14)
+	_label(_menu, "THE HAZMAT INTERNS / SHIFT SETUP", Vector2(28, 83), Vector2(424, 24), 14)
+	_bots_label = _label(_menu, "", Vector2(28, 126), Vector2(220, 30), 18)
+	_button(_menu, "-", Vector2(300, 122), Vector2(70, 38), func() -> void: _change_bots(-1))
+	_button(_menu, "+", Vector2(382, 122), Vector2(70, 38), func() -> void: _change_bots(1))
+	_level_button = _button(_menu, "", Vector2(28, 170), Vector2(424, 38), _cycle_level)
+	_button(_menu, "START SHIFT", Vector2(28, 230), Vector2(424, 48), _restart)
+	_button(_menu, "SETTINGS", Vector2(28, 288), Vector2(424, 42), func() -> void: settings_requested.emit())
+	_button(_menu, "REPLAY ORIENTATION", Vector2(28, 338), Vector2(424, 42), func() -> void: orientation_requested.emit())
+	_menu_help = _label(_menu, "", Vector2(28, 398), Vector2(424, 56), 14)
+	_refresh_lobby()
 	_menu_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_menu.hide()
 
@@ -269,7 +279,32 @@ func _label(parent: Node, text: String, at: Vector2, dimensions: Vector2, font_s
 	return label
 
 
-func _button(parent: Node, text: String, at: Vector2, dimensions: Vector2, callback: Callable) -> void:
+## Levels for GameState.create: one entry per bot.
+func bot_levels() -> Array[int]:
+	var levels: Array[int] = []
+	for index: int in bot_count:
+		levels.append(index % 3 + 1 if bot_level == 4 else bot_level)
+	return levels
+
+
+func _change_bots(step: int) -> void:
+	bot_count = clampi(bot_count + step, 0, Tuning.MAX_BOTS)
+	_refresh_lobby()
+
+
+func _cycle_level() -> void:
+	bot_level = bot_level % 4 + 1
+	_refresh_lobby()
+
+
+func _refresh_lobby() -> void:
+	_bots_label.text = "BOTS  %d / %d" % [bot_count, Tuning.MAX_BOTS]
+	var names: Array[String] = ["LV1 TRAINEE", "LV2 TECHNICIAN", "LV3 SUPERVISOR", "MIXED LV1-3"]
+	_level_button.text = "BOT LEVEL: %s" % names[bot_level - 1]
+	_level_button.disabled = bot_count == 0
+
+
+func _button(parent: Node, text: String, at: Vector2, dimensions: Vector2, callback: Callable) -> Button:
 	var button: Button = Button.new()
 	parent.add_child(button)
 	button.position = at
@@ -280,6 +315,7 @@ func _button(parent: Node, text: String, at: Vector2, dimensions: Vector2, callb
 	button.add_theme_stylebox_override("normal", _style(Color("30383c")))
 	button.add_theme_stylebox_override("hover", _style(Color("47545b")))
 	button.pressed.connect(callback)
+	return button
 
 
 func _style(color: Color) -> StyleBoxFlat:

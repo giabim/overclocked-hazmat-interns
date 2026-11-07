@@ -28,6 +28,10 @@ func _draw() -> void:
 	if blip_strength > 0:
 		for blip: Vector2 in blips:
 			draw_circle(origin + blip / Tuning.CELL_SIZE * scale, 3.4, Color(1.0, 0.35, 0.12, blip_strength))
+	var bands: Array[Color] = [Color("e69f00"), Color("56b4e9"), Color("009e73"), Color("f0e442"), Color("0072b2"), Color("d55e00"), Color("cc79a7"), Color.WHITE]
+	for index: int in range(1, state.players.size()):
+		var bot: PlayerState = state.players[index]
+		draw_circle(origin + bot.position / Tuning.CELL_SIZE * scale, 2.6, bands[bot.id % bands.size()])
 	var at: Vector2 = origin + state.player.position / Tuning.CELL_SIZE * scale
 	draw_circle(at, 3.2, Color.WHITE)
 	var names: Array[String] = ["W-01", "E-01", "N-01", "S-01"]
