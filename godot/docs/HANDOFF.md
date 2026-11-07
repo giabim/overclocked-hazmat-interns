@@ -11,12 +11,16 @@ Updated: 2026-11-07. Written by Claude. Read this file and `AGENTS.md` before wo
 | --- | --- |
 | `beb8a10` | M3.1 grid line of sight + BFS flow field |
 | `3de5975` | M3.2–M3.4 sim: specimens, foam, grenades, caught rules |
+| `c7715a5` | This handoff file |
+| `5c3a27e` | M3.4–M3.5 views: specimens, den cages, grenades, caught card + arrows, positional audio, sweep blips, foam/grenade HUD |
 
 If the commits are not on GitHub yet, the owner applies them first (see §6).
 
 ## 2. Verified
 
-`./tools/check.sh` on Godot 4.7.2 (Linux headless): **49/49 tests**, both scene smokes pass, no warnings.
+`./tools/check.sh` on Godot 4.7.2 (Linux headless): **51/51 tests**, both scene smokes pass, no warnings. Review render: `docs/shots/M3_specimens.png` (77 draw calls, limit 120), made with `xvfb-run -a .tools/godot --path . --rendering-method gl_compatibility --script res://tools/capture_scene.gd -- --capture --specimens`.
+
+Known flaky (also before M3): a scene smoke can rarely print "ObjectDB instances were leaked at exit" and fail `check.sh`; a rerun passes.
 
 ## 3. What the new sim does (all numbers in `sim/tuning.gd`)
 
@@ -57,11 +61,12 @@ If the commits are not on GitHub yet, the owner applies them first (see §6).
 
 ## 5. Next tasks, in order
 
-1. **M3.4 view:** "why you got caught" card (e.g. "Caught by Spark Hound — it dashed from the left") + screen-edge arrow from `from_angle`, 1 s desaturate. Card text lives in `game/`, not `sim/`.
-2. **M3.5:** specimen views (primitive meshes per `docs/art.md` §4.4; frosty blue when FROZEN; den cage), grenade crates/thrown grenade/burst, positional audio (slime 8 m, hound 12 m; louder crackle in WINDUP), sensor-sweep blips on the minimap for 1 s, HUD foam charges + grenade icon.
-3. **Cohesion check:** Orientation R3/R4 use real `SpecimenState` (sleepy slime that can't catch; hound behind glass).
-4. **M2.5 (👤 owner):** 3–5 new players, record in `docs/playtests/01.md`, fix the top 3 problems. Never invent observations. M1.4 movement check is also still waiting for the owner.
-5. Then M4 bots (they use `PlayerInput` and `GameState.players`).
+Done: M3.1–M3.5 (views: `game/specimens/specimen_views.gd`, `game/level/grenade_views.gd`, HUD card/arrows/overlay/tools line in `game/ui/hud.gd`, sweep blips in `game/ui/minimap.gd`).
+
+1. **M3 cohesion check:** Orientation R3/R4 should use real `SpecimenState` (R3: a sleeping slime that can't catch, foamed with `Hazards.try_foam`, contained → its pen closes → door opens; R4: hound demo). Keep Orientation safe and finishable; update `tests/test_orientation.gd` and `tools/smoke_orientation.gd`.
+2. **👤 Owner checks:** play a shift — do the slime/hound feel fair? Is the caught card clear? Are the positional sounds audible on Windows? Record in `docs/playtests/`.
+3. **M2.5 (👤 owner):** 3–5 new players, record in `docs/playtests/01.md`, fix the top 3 problems. Never invent observations. M1.4 movement check is also still waiting for the owner.
+4. Then **M4 bots**: `sim/bot_brain.gd` makes a `PlayerInput` per bot; add bots to `GameState.players`; `Rules.advance` currently steps only `state.player`, so generalize it to step every player with its own input (keep `players[0]` as the human). Perception: LOS + hearing only.
 
 Done-when for each task stays as in `AGENTS.md`: `./tools/check.sh` passes, new logic has tests, roadmap box ticked, one CHANGELOG line.
 
